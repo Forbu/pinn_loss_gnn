@@ -30,7 +30,19 @@ class MLP(nn.Module):
         return x
 
 class GraphProcess(nn.Module):
-    pass
+    """
+    In this module we will define the graph processor that is used to create the MeshGraphNetwork
+    TODO
+    """
+    def __init__(self) -> None:
+        super().__init__()
+        pass
+
+    def setup(self):
+        pass
+
+    def __call__(self):
+        pass
 
 # here we will define a graph neural network using flax and jax
 # we will use the same graph neural network as in the paper
