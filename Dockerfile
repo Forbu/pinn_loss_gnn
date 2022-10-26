@@ -1,11 +1,11 @@
 # dockerfile definition to create a docker image for the application (pinn_loss_gnn)
 # jax base image
-FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 # install python3.9
 RUN apt-get update && apt-get install -y software-properties-common
 
-RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && apt-get install -y python3.9 python3.9-dev python3.9-distutils
+RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y python3.9 python3.9-dev python3.9-distutils
 
 # install pip
 RUN apt-get update && apt-get install -y python3-pip
