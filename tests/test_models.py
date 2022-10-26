@@ -1,6 +1,22 @@
 # import lib
 from pinn_loss import models
 
+import jax.numpy as jnp
+
+def test_MLP():
+    """
+    Here we test the MLP model
+    """
+    mlp = models.MLP(2, 2, 2, 2)
+
+    # we test the forward pass
+    x = jnp.ones((2, 2))
+    y = mlp(x)
+
+    assert y.shape == (2, 2)
+    
+
+
 def test_meshgraphnetmodel():
 
     # TODO we create the model
