@@ -1,7 +1,10 @@
 from pinn_loss import models
 
+import jax.tree_util as tree
 import jax.numpy as jnp
 import jax
+
+from jraph._src import utils
 
 def test_MLP():
     """
@@ -68,13 +71,31 @@ def test_node_processor():
     # create random edges features
     edges = jax.random.normal(rng, (10, 2))
 
+    nb_edge = 10
+
+    senders = edges_index[:, 0]
+    receivers = edges_index[:, 1]
+
+    aggregate_edges_for_nodes_fn = utils.segment_sum
+
+    sum_n_node = tree.tree_leaves(nodes)[0].shape[0]
+
     # retrieve the sent attributes from edges features
+    sent_attributes = tree.tree_map(
+          lambda e: aggregate_edges_for_nodes_fn(e, senders, sum_n_node), edges)
     
+    received_attributes = tree.tree_map(
+          lambda e: aggregate_edges_for_nodes_fn(e, receivers, sum_n_node),
+          edges)    
 
     # init weights
-    # weights = node_processor.init(rng, nodes, sent_attributes, received_attributes)
+    weights = node_processor.init(rng, nodes, sent_attributes, received_attributes)
 
-    pass
+    # apply the model
+    y = node_processor.apply(weights, nodes, sent_attributes, received_attributes)
+
+    assert y.shape == (10, 2)
+
 
 def test_graph_processor():
     """
