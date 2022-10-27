@@ -128,9 +128,11 @@ class ModelGnnPinn(nn.Module):
 
     def __call__(self, input_node, input_edge, graph_index):
         """
-        input_node: (batch_size, nb_nodes, 2)
-        input_edge: (batch_size, nb_edges, 2)
-        graph: (batch_size, nb_nodes, nb_nodes)
+        Forward pass
+
+        input_node: (batch_size, nb_nodes, input_dims_node_encoder)
+        input_edge: (batch_size, nb_edges, input_dims_edge_encoder)
+        graph_index: (batch_size, nb_edges, 2)
         """
         # encode the node and the edge
         node = self.node_encoder(input_node)
@@ -153,5 +155,4 @@ class ModelGnnPinn(nn.Module):
         return node
 
 
-    
 
