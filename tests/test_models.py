@@ -1,6 +1,7 @@
 # import lib
 from pinn_loss import models
 import jax.numpy as jnp
+import jax
 
 def test_MLP():
     """
@@ -8,22 +9,26 @@ def test_MLP():
     """
     mlp = models.MLP(2, 2, 2, 2)
 
-    # we test the forward pass
-    x = jnp.ones((2, 2))
-    y = mlp(x)
+    # create PRNGKey
+    rng = jax.random.PRNGKey(0)
 
+    x = jnp.ones((2, 2))
+    weights = mlp.init(rng, x)
+
+    # we test the forward pass
+    y = mlp.apply(weights, x)
     assert y.shape == (2, 2)
     
 def test_meshgraphnetmodel():
+    """
+    Here we test the full model
+    """
+    pass
 
-    # TODO we create the model
-
-    # we generate a random graph data
-
-    # we make a pass though the model and retrieve the correct dimension
-
-    # assert the correct dimension
-
+def test_graph_processor():
+    """
+    Here we test the graph processor module (the graph processor is the core of the model)
+    """
     pass
 
 def test_training_mode():

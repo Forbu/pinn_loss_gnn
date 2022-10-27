@@ -1,10 +1,14 @@
-
-from tkinter import HIDDEN
+"""
+Main code to get a simple GNN model (MeshGraph model) to work
+"""
 import jax
 import jax.numpy as jnp
 
 import flax
-from flax import nn
+from flax import linen as nn
+
+# import jraph
+import jraph
 
 from pinn_loss import utils
 
@@ -29,11 +33,56 @@ class MLP(nn.Module):
             x = output_activation(x)
         return x
 
+class NodeProcessor(nn.Module):
+    """
+    This class process the node features with all the edges features associated to it
+    """
+    in_dims_node: int
+    in_dims_edge: int
+
+    hidden_dims: int
+
+    def setup(self):
+        self.node_mlp = MLP(2, self.hidden_dims, self.in_dims_node + self.in_dims_edge, self.in_dims_node)
+
+    def __call__(self, node_features, edge_features):
+        """
+        Forward pass
+        """
+        # scatter sum the edge features
+        edge_features = jraph.ops.segment_sum(edge_features, node_features["edges"])
+
+        # we concatenate the node features with the edge features
+        x = jnp.concatenate([node_features, edge_features], axis=-1)
+        x = self.node_mlp(x)
+        return x
+
+class EdgeProcessor(nn.Module):
+    """
+    This class process the node features with all the edges features associated to it
+    """
+    in_dims_node: int
+    in_dims_edge: int
+
+    hidden_dims: int
+
+    def setup(self):
+        self.node_mlp = MLP(2, self.hidden_dims, self.in_dims_node + self.in_dims_edge, self.in_dims_node)
+
+    def __call__(self, nodes, sent_attributes,
+                             received_attributes):
+        """
+        Forward pass
+        """
+        pass
+
 class GraphProcess(nn.Module):
     """
     In this module we will define the graph processor that is used to create the MeshGraphNetwork
-    TODO
     """
+    input_dims_node : int
+    input_dims_edge : int
+
     def __init__(self) -> None:
         super().__init__()
         pass
@@ -53,6 +102,19 @@ class ModelGnnPinn(nn.Module):
 
     This is a toy model in which we will use MeshGraphNetwork to solve the PDE (couple with PINN loss)
     """
+    nb_layers : int
+    hidden_dims : int
+
+    input_dims_node_encoder: int
+    input_dims_edge_encoder: int
+
+    input_dims_node_decoder: int
+    output_dims_node_decoder: int
+
+    output_dims: int
+
+    mp_iteration: int
+
     def __init__(self, ) -> None:
         super().__init__()
 
@@ -60,10 +122,16 @@ class ModelGnnPinn(nn.Module):
         """
         We have to define the edge encoder, node encoder, the graph processor and the node decoder
         """
-        self.node_encoder = MLP(nb_layers=2, hidden_dims=32, input_dims=2, output_dims=32)
-        self.edge_encoder = MLP(nb_layers=2, hidden_dims=32, input_dims=2, output_dims=32)
-        self.graph_processor = GraphProcess() # TODO: define the graph processor
-        self.node_decoder = MLP(nb_layers=2, hidden_dims=32, input_dims=32, output_dims=1)
+        self.node_encoder = MLP(nb_layers=self.nb_layers, hidden_dims=self.hidden_dims,
+                                                             input_dims=self.input_dims_node_encoder, output_dims=32)
+        self.edge_encoder = MLP(nb_layers=self.nb_layers, hidden_dims=self.hidden_dims,
+                                                             input_dims=self.input_dims_node_encoder, output_dims=32)
+
+        self.node_decoder = MLP(nb_layers=self.nb_layers, hidden_dims=self.hidden_dims, 
+                                                             input_dims=self.input_dims_node_decoder, output_dims=self.output_dims_node_decoder)
+
+        # TODO complete
+        self.graph_processors = [jraph.GraphNetwork(update_edge_fn=EdgeProcessor(), update_node_fn=NodeProcessor()) for _ in range(self.mp_iteration)]
 
     def __call__(self, input_node, input_edge, graph):
         """
@@ -75,8 +143,16 @@ class ModelGnnPinn(nn.Module):
         node = self.node_encoder(input_node)
         edge = self.edge_encoder(input_edge)
 
+        # create the graph
+        graph = jraph.GraphsTuple(nodes=node, edges=edge, globals=None,
+                     n_node=jnp.array([node.shape[1]]), n_edge=jnp.array([edge.shape[1]]), senders= graph[0], receivers=graph[1])
+
         # process the graph
-        node = self.graph_processor(node, edge, graph)
+        for graph_processor in self.graph_processors:
+            graph = graph_processor(graph)
+
+        # we get the node features
+        node = graph.nodes
 
         # decode the node
         node = self.node_decoder(node)
