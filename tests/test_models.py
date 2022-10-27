@@ -96,14 +96,48 @@ def test_node_processor():
 
     assert y.shape == (10, 2)
 
-def test_graph_processor():
-    """
-    Here we test the graph processor module (the graph processor is the core of the model)
-    """
-    pass
-
-def test_meshgraphnetmodel():
+def test_ModelGnnPinn():
     """
     Here we test the full model
     """
-    pass
+    
+    # params
+    nb_layers = 2
+    hidden_dims = 32
+
+    input_dims_node_encoder = 2
+    input_dims_edge_encoder = 2
+
+    encoder_output_dims = 32
+
+    input_dims_node_decoder = 32
+    output_dims_node_decoder = 32
+
+
+    mp_iteration = 5
+
+    # init model
+    modelgnnpinn = models.ModelGnnPinn(nb_layers=nb_layers, hidden_dims=hidden_dims, input_dims_node_encoder=input_dims_node_encoder,
+     input_dims_edge_encoder=input_dims_edge_encoder, encoder_output_dims=encoder_output_dims, input_dims_node_decoder=input_dims_node_decoder,
+     output_dims_node_decoder=output_dims_node_decoder, mp_iteration=mp_iteration)
+
+    # create PRNGKey
+    rng = jax.random.PRNGKey(0)
+
+    # create randn nodes features (10 nodes)
+    nodes = jax.random.normal(rng, (10, 2))
+
+    # create random edges between the nodes
+    edges_index = jax.random.randint(key = rng, shape = (10, 2), minval = 0, maxval = 10)
+
+    # create random edges features
+    edges = jax.random.normal(rng, (10, 2))
+
+    # init weights
+    weights = modelgnnpinn.init(rng, nodes, edges_index, edges)
+
+    # apply the model
+    y = modelgnnpinn.apply(weights, nodes, edges_index, edges)
+
+    assert y.shape == (10, 3)
+

@@ -102,15 +102,12 @@ class ModelGnnPinn(nn.Module):
     input_dims_node_encoder: int
     input_dims_edge_encoder: int
 
+    encoder_output_dims: int
+
     input_dims_node_decoder: int
     output_dims_node_decoder: int
 
-    output_dims: int
-
     mp_iteration: int
-
-    def __init__(self, ) -> None:
-        super().__init__()
 
     def setup(self):
         """
@@ -124,7 +121,8 @@ class ModelGnnPinn(nn.Module):
         self.node_decoder = MLP(nb_layers=self.nb_layers, hidden_dims=self.hidden_dims, 
                                                              input_dims=self.input_dims_node_decoder, output_dims=self.output_dims_node_decoder)
 
-        self.graph_processors = [jraph.GraphNetwork(update_edge_fn=EdgeProcessor(), update_node_fn=NodeProcessor()) for _ in range(self.mp_iteration)]
+        self.graph_processors = [jraph.GraphNetwork(update_edge_fn=EdgeProcessor(in_dims_node=32, in_dims_edge=32, hidden_dims=self.hidden_dims),
+                                update_node_fn=NodeProcessor(in_dims_node=32, in_dims_edge=32, hidden_dims=self.hidden_dims)) for _ in range(self.mp_iteration)]
 
     def __call__(self, input_node, input_edge, graph_index):
         """
