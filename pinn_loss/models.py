@@ -45,7 +45,7 @@ class NodeProcessor(nn.Module):
         self.node_mlp = MLP(2, self.hidden_dims, self.in_dims_node + self.in_dims_edge, self.in_dims_node)
 
     def __call__(self, nodes, sent_attributes,
-                             received_attributes):
+                             received_attributes, global_attributes=None):
         """
         Forward pass
         """
@@ -72,7 +72,7 @@ class EdgeProcessor(nn.Module):
     def setup(self):
         self.node_mlp = MLP(2, self.hidden_dims, 2 * self.in_dims_node + self.in_dims_edge, self.in_dims_node)
 
-    def __call__(self, edges, sent_attributes, received_attributes):
+    def __call__(self, edges, sent_attributes, received_attributes, global_attributes=None):
         """
         Forward pass
         """

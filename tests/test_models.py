@@ -113,7 +113,6 @@ def test_ModelGnnPinn():
     input_dims_node_decoder = 32
     output_dims_node_decoder = 32
 
-
     mp_iteration = 5
 
     # init model
@@ -134,10 +133,10 @@ def test_ModelGnnPinn():
     edges = jax.random.normal(rng, (10, 2))
 
     # init weights
-    weights = modelgnnpinn.init(rng, nodes, edges_index, edges)
+    weights = modelgnnpinn.init(rng, nodes, edges, edges_index)
 
-    # apply the model
-    y = modelgnnpinn.apply(weights, nodes, edges_index, edges)
+    # apply the model using weights as parameters and nodes and edges and edges_index as inputs
+    y = modelgnnpinn.apply({"params" : weights}, nodes, edges, edges_index)
 
     assert y.shape == (10, 3)
 
