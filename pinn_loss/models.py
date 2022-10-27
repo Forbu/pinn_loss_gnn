@@ -87,23 +87,6 @@ class EdgeProcessor(nn.Module):
 
         return x
 
-class GraphProcess(nn.Module):
-    """
-    In this module we will define the graph processor that is used to create the MeshGraphNetwork
-    """
-    input_dims_node : int
-    input_dims_edge : int
-
-    def __init__(self) -> None:
-        super().__init__()
-        pass
-
-    def setup(self):
-        pass
-
-    def __call__(self):
-        pass
-
 # here we will define a graph neural network using flax and jax
 # we will use the same graph neural network as in the paper
 class ModelGnnPinn(nn.Module):
@@ -141,10 +124,9 @@ class ModelGnnPinn(nn.Module):
         self.node_decoder = MLP(nb_layers=self.nb_layers, hidden_dims=self.hidden_dims, 
                                                              input_dims=self.input_dims_node_decoder, output_dims=self.output_dims_node_decoder)
 
-        # TODO complete
         self.graph_processors = [jraph.GraphNetwork(update_edge_fn=EdgeProcessor(), update_node_fn=NodeProcessor()) for _ in range(self.mp_iteration)]
 
-    def __call__(self, input_node, input_edge, graph):
+    def __call__(self, input_node, input_edge, graph_index):
         """
         input_node: (batch_size, nb_nodes, 2)
         input_edge: (batch_size, nb_edges, 2)
@@ -156,7 +138,7 @@ class ModelGnnPinn(nn.Module):
 
         # create the graph
         graph = jraph.GraphsTuple(nodes=node, edges=edge, globals=None,
-                     n_node=jnp.array([node.shape[1]]), n_edge=jnp.array([edge.shape[1]]), senders= graph[0], receivers=graph[1])
+                     n_node=jnp.array([node.shape[1]]), n_edge=jnp.array([edge.shape[1]]), senders= graph_index[0], receivers=graph_index[1])
 
         # process the graph
         for graph_processor in self.graph_processors:

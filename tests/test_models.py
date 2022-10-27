@@ -96,7 +96,6 @@ def test_node_processor():
 
     assert y.shape == (10, 2)
 
-
 def test_graph_processor():
     """
     Here we test the graph processor module (the graph processor is the core of the model)
