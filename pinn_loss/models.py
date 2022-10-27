@@ -7,7 +7,6 @@ import jax.numpy as jnp
 import flax
 from flax import linen as nn
 
-# import jraph
 import jraph
 
 from pinn_loss import utils
@@ -45,16 +44,20 @@ class NodeProcessor(nn.Module):
     def setup(self):
         self.node_mlp = MLP(2, self.hidden_dims, self.in_dims_node + self.in_dims_edge, self.in_dims_node)
 
-    def __call__(self, node_features, edge_features):
+    def __call__(self, nodes, sent_attributes,
+                             received_attributes):
         """
         Forward pass
         """
-        # scatter sum the edge features
-        edge_features = jraph.ops.segment_sum(edge_features, node_features["edges"])
+        # concatenate the node features with the received attributes
+        x = jnp.concatenate([nodes, received_attributes], axis=-1)
 
-        # we concatenate the node features with the edge features
-        x = jnp.concatenate([node_features, edge_features], axis=-1)
+        # apply the MLP
         x = self.node_mlp(x)
+
+        # adding the residual connection
+        x = x + nodes
+
         return x
 
 class EdgeProcessor(nn.Module):
@@ -67,14 +70,22 @@ class EdgeProcessor(nn.Module):
     hidden_dims: int
 
     def setup(self):
-        self.node_mlp = MLP(2, self.hidden_dims, self.in_dims_node + self.in_dims_edge, self.in_dims_node)
+        self.node_mlp = MLP(2, self.hidden_dims, 2 * self.in_dims_node + self.in_dims_edge, self.in_dims_node)
 
-    def __call__(self, nodes, sent_attributes,
-                             received_attributes):
+    def __call__(self, edges, sent_attributes, received_attributes):
         """
         Forward pass
         """
-        pass
+        # concatenate the node features with the received attributes
+        x = jnp.concatenate([edges, sent_attributes, received_attributes], axis=-1)
+
+        # apply the MLP
+        x = self.node_mlp(x)
+
+        # adding the residual connection
+        x = x + edges
+
+        return x
 
 class GraphProcess(nn.Module):
     """
