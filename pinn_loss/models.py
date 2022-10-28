@@ -121,8 +121,14 @@ class ModelGnnPinn(nn.Module):
         self.node_decoder = MLP(nb_layers=self.nb_layers, hidden_dims=self.hidden_dims, 
                                                              input_dims=self.input_dims_node_decoder, output_dims=self.output_dims_node_decoder)
 
-        self.graph_processors = [jraph.GraphNetwork(update_edge_fn=EdgeProcessor(in_dims_node=32, in_dims_edge=32, hidden_dims=self.hidden_dims),
-                                update_node_fn=NodeProcessor(in_dims_node=32, in_dims_edge=32, hidden_dims=self.hidden_dims)) for _ in range(self.mp_iteration)]
+        # create the list of edge processor
+        self.edge_processors = [EdgeProcessor(in_dims_node=32, in_dims_edge=32, hidden_dims=self.hidden_dims) for _ in range(self.mp_iteration)]
+
+        # create the list of node processor
+        self.node_processors = [NodeProcessor(in_dims_node=32, in_dims_edge=32, hidden_dims=self.hidden_dims) for _ in range(self.mp_iteration)]
+
+        self.graph_processors = [jraph.GraphNetwork(update_edge_fn=self.edge_processors[i],
+                                update_node_fn=self.node_processors[i]) for i in range(self.mp_iteration)]
 
     def __call__(self, input_node, input_edge, graph_index):
         """
@@ -138,7 +144,7 @@ class ModelGnnPinn(nn.Module):
 
         # create the graph
         graph = jraph.GraphsTuple(nodes=node, edges=edge, globals=None,
-                     n_node=jnp.array([node.shape[1]]), n_edge=jnp.array([edge.shape[1]]), senders= graph_index[0], receivers=graph_index[1])
+                     n_node=jnp.array([node.shape[1]]), n_edge=jnp.array([edge.shape[0]]), senders= graph_index[:, 0], receivers=graph_index[:, 1])
 
         # process the graph
         for graph_processor in self.graph_processors:

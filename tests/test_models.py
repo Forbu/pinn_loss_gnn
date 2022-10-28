@@ -111,7 +111,7 @@ def test_ModelGnnPinn():
     encoder_output_dims = 32
 
     input_dims_node_decoder = 32
-    output_dims_node_decoder = 32
+    output_dims_node_decoder = 3
 
     mp_iteration = 5
 
@@ -136,7 +136,7 @@ def test_ModelGnnPinn():
     weights = modelgnnpinn.init(rng, nodes, edges, edges_index)
 
     # apply the model using weights as parameters and nodes and edges and edges_index as inputs
-    y = modelgnnpinn.apply({"params" : weights}, nodes, edges, edges_index)
+    y = modelgnnpinn.apply(weights, nodes, edges, edges_index)
 
     assert y.shape == (10, 3)
 
