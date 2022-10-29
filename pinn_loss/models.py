@@ -138,13 +138,17 @@ class ModelGnnPinn(nn.Module):
         input_edge: (batch_size, nb_edges, input_dims_edge_encoder)
         graph_index: (batch_size, nb_edges, 2)
         """
+        # get shape
+        nb_nodes, _ = input_node.shape
+        nb_edges, _ = input_edge.shape
+
         # encode the node and the edge
         node = self.node_encoder(input_node)
         edge = self.edge_encoder(input_edge)
 
         # create the graph
         graph = jraph.GraphsTuple(nodes=node, edges=edge, globals=None,
-                     n_node=jnp.array([node.shape[1]]), n_edge=jnp.array([edge.shape[0]]), senders= graph_index[:, 0], receivers=graph_index[:, 1])
+                     n_node=nb_nodes, n_edge=nb_edges, senders= graph_index[:, 0], receivers=graph_index[:, 1])
 
         # process the graph
         for graph_processor in self.graph_processors:
