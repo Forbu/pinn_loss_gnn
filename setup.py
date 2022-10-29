@@ -17,7 +17,7 @@ with open('requirements.txt') as f:
 setup(
     name='pinn_loss',
     version='0.1',
-    description='A package for PINN loss',
+    description='A package for PINN loss with graph neural networks',
     long_description=long_description,
     packages=find_packages(),
     include_package_data=True,

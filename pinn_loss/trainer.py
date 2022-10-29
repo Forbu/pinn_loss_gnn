@@ -36,7 +36,6 @@ class LightningFlax:
         for batch_idx, batch in enumerate(tqdm(self.train_load)):
             loss = self.training_step(batch, batch_idx)
 
-            ## TODO log if we activate loggin
             epoch_loss.append(loss)
 
         train_loss = np.mean(epoch_loss)
@@ -49,16 +48,17 @@ class LightningFlax:
         for batch_idx, batch in enumerate(tqdm(self.validation_loader)):
             loss = self.validation_step(batch, batch_idx)
 
-            ## TODO log if we activate loggin
             epoch_loss.append(loss)
 
         train_loss = np.mean(epoch_loss)
         return train_loss
 
-    def fit(self, train_loader, validation_loader, save_model_every_n_epoch=100):
+    def fit(self, train_loader, validation_loader, save_model_every_n_epoch=100, save_log_step_every_n_step=100):
 
         self.train_loader = train_loader
         self.validation_loader = validation_loader
+        self.save_model_every_n_epoch = save_model_every_n_epoch
+        self.save_log_step_every_n_step = save_log_step_every_n_step
 
         validation = self.validation_loader is not None
 
