@@ -49,6 +49,30 @@ class DerivativeOperator(nn.Module):
 
         return y.nodes
 
+class TemporalDerivativeOperator(nn.Module):
+    """
+    This class compute the temporal derivative of the Gnn (I/O)
+    
+    We suppose the input of the Gnn is the output of the previous Gnn
+
+    This is a simple temporal derivative operator
+
+    """
+    index_node_derivator: int
+
+    def setup(self):
+        pass
+
+    def __call__(self, input_node_t_1, input_node_t, delta_t):
+        """
+        Forward pass
+        """
+        # compute the temporal derivative
+        y = (input_node_t - input_node_t_1) / delta_t
+
+        return y[:, self.index_node_derivator]
+
+
 
     
     
