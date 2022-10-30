@@ -82,3 +82,40 @@ def test_loss_operator():
 
     # apply the loss operator
     y = derivative_operator.apply(params, nodes, edges, edges_index)
+
+    assert y.shape == (10,)
+
+
+def test_temporal_derivative_operator():
+    """
+    Here we test the temporal derivative operator
+    We create two vectors (nodes) and we compute the temporal derivative
+    """
+
+    # create PRNGKey
+    rng = jax.random.PRNGKey(0)
+
+    # create random nodes for t = 0
+    nodes = jax.random.normal(rng, (10, 2))
+
+    # create random nodes for t = 1
+    nodes_t1 = jax.random.normal(rng, (10, 2))
+
+    # init delta_t
+    delta_t = 0.01
+
+    # init the DerivativeOperator (nn.Module)
+    derivative_operator = loss_operator.TemporalDerivativeOperator(index_node_derivator=0)
+
+    # init the loss operator
+    params = derivative_operator.init(rng, nodes, nodes_t1, delta_t)
+
+    # apply the loss operator
+    y = derivative_operator.apply(params, nodes, nodes_t1, delta_t)
+
+    assert y.shape == (10,)
+
+
+    
+
+
