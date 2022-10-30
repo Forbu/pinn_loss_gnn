@@ -51,6 +51,14 @@ def apply_model(state, nodes=None, edges=None, edges_index=None, target=None, mo
     (loss, result), grads = grad_fn(state.params)
     return grads, loss
 
+@partial(jax.jit, static_argnums=(4,))
+def eval(params, nodes=None, edges=None, edges_index=None, model_all=None):
+    """
+    TODO rework for use case
+    """
+    result = model_all.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
+    return result
+
 class LightningFlax:
     """
     Class that manage the flax training in the same way that lightning does (but with jax this time)
