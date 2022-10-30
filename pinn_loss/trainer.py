@@ -1,13 +1,55 @@
+"""
+Class and function to manage training of the model.
+"""
+
 import jax 
 import jax.numpy as jnp
 
 import flax
 from flax import nn
-from flax.training import train_state, checkpoints
+from flax.training import checkpoints
+from flax.training import train_state
+
+from functools import partial
 
 import tqdm
 
 import numpy as np
+
+import optax
+
+from pinn_loss import models
+
+def create_train_state(rng, config_model, config_trainer, config_input_init):
+    """Creates initial `TrainState`."""
+    model_all = models.ModelGnnPinn(**config_model)
+
+    nodes = jax.random.normal(rng, config_input_init["nodes"])
+    edges = jax.random.normal(rng, config_input_init["edges"])
+    edges_index = jax.random.randint(key = rng, shape = config_input_init["edges_index"], minval = 0, maxval = 100)
+
+    params = model_all.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
+
+    optimizer = optax.chain(
+    optax.clip(1.0),
+    optax.adam(learning_rate=config_trainer["learning_rate"]),
+    )
+
+    return train_state.TrainState.create(
+        apply_fn=model_all.apply, params=params, tx=optimizer), model_all
+
+
+@partial(jax.jit, static_argnums=(5,))
+def apply_model(state, nodes=None, edges=None, edges_index=None, target=None, model_all=None):
+    """Computes gradients, loss and accuracy for a single batch."""
+    def loss_fn(params):
+        result = model_all.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
+        loss = jnp.mean(optax.l2_loss(result, target))
+        return loss, result
+
+    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+    (loss, result), grads = grad_fn(state.params)
+    return grads, loss
 
 class LightningFlax:
     """
