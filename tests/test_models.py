@@ -140,3 +140,50 @@ def test_ModelGnnPinn():
 
     assert y.shape == (10, 3)
 
+def test_ModelGnnPinn_BigGraph():
+    """
+    Here we test the full model
+    """
+    
+    # params
+    nb_layers = 2
+    hidden_dims = 32
+
+    input_dims_node_encoder = 2
+    input_dims_edge_encoder = 2
+
+    encoder_output_dims = 32
+
+    input_dims_node_decoder = 32
+    output_dims_node_decoder = 3
+
+    mp_iteration = 5
+
+    nb_node = 40000
+
+    # init model
+    modelgnnpinn = models.ModelGnnPinn(nb_layers=nb_layers, hidden_dims=hidden_dims, input_dims_node_encoder=input_dims_node_encoder,
+     input_dims_edge_encoder=input_dims_edge_encoder, encoder_output_dims=encoder_output_dims, input_dims_node_decoder=input_dims_node_decoder,
+     output_dims_node_decoder=output_dims_node_decoder, mp_iteration=mp_iteration)
+
+    # create PRNGKey
+    rng = jax.random.PRNGKey(0)
+
+    # create randn nodes features (1000 nodes)
+    nodes = jax.random.normal(rng, (nb_node, 2))
+
+    # create random edges between the nodes
+    edges_index = jax.random.randint(key = rng, shape = (nb_node, 2), minval = 0, maxval = nb_node)
+
+    # create random edges features
+    edges = jax.random.normal(rng, (nb_node, 2))
+
+    # init weights
+    weights = modelgnnpinn.init(rng, nodes, edges, edges_index)
+
+    # apply the model using weights as parameters and nodes and edges and edges_index as inputs
+    y = modelgnnpinn.apply(weights, nodes, edges, edges_index)
+
+    assert y.shape == (nb_node, 3)
+
+

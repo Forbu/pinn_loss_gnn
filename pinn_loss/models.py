@@ -152,6 +152,7 @@ class ModelGnnPinn(nn.Module):
 
         # process the graph
         for graph_processor in self.graph_processors:
+
             graph = graph_processor(graph)
 
         # we get the node features
