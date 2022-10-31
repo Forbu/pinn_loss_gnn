@@ -6,9 +6,10 @@ import jax
 import jax.numpy as jnp
 
 import flax
-from flax import nn
-from flax.training import checkpoints
+from flax import linen as nn
 from flax.training import train_state
+
+from flax import serialization
 
 from functools import partial
 
@@ -132,11 +133,22 @@ class LightningFlax:
                     self.logger.log({"train_loss": float(train_loss), "epoch": epoch})
 
                 if (self.epoch % save_model_every_n_epoch) == 0: 
-                    # use checkpoints.save_checkpoint to save the model
-                    checkpoints.save_checkpoint(self.config.model_dir, self.state, epoch=self.epoch)
+                    # save state.params using flax.serialization.to_bytes
+                    dict_output = serialization.to_state_dict(self.state.params)
+
+                    # save the dict
+                    np.savez_compressed("model_epoch_{}.npz".format(self.epoch), **dict_output)
+
+                    
 
     def training_step(self, batch, batch_idx):
-        pass
+        
+        grads, loss = apply_model(self.state, nodes=batch["nodes"], edges=batch["edges"], edges_index=batch["edges_index"], target=batch["target"], model_all=self.model)
+
+        self.state = self.state.apply_gradients(grads=grads)
+
+        return loss
+
 
     def validation_step(self, batch, batch_idx):
         pass

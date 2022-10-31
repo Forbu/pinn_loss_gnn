@@ -130,7 +130,7 @@ class ModelGnnPinn(nn.Module):
         self.graph_processors = [jraph.GraphNetwork(update_edge_fn=self.edge_processors[i],
                                 update_node_fn=self.node_processors[i]) for i in range(self.mp_iteration)]
 
-    def __call__(self, input_node, input_edge, graph_index):
+    def __call__(self, nodes, edges, edges_index):
         """
         Forward pass
 
@@ -139,16 +139,16 @@ class ModelGnnPinn(nn.Module):
         graph_index: (batch_size, nb_edges, 2)
         """
         # get shape
-        nb_nodes, _ = input_node.shape
-        nb_edges, _ = input_edge.shape
+        nb_nodes, _ = nodes.shape
+        nb_edges, _ = edges.shape
 
         # encode the node and the edge
-        node = self.node_encoder(input_node)
-        edge = self.edge_encoder(input_edge)
+        node = self.node_encoder(nodes)
+        edge = self.edge_encoder(edges)
 
         # create the graph
         graph = jraph.GraphsTuple(nodes=node, edges=edge, globals=None,
-                     n_node=nb_nodes, n_edge=nb_edges, senders= graph_index[:, 0], receivers=graph_index[:, 1])
+                     n_node=nb_nodes, n_edge=nb_edges, senders= edges_index[:, 0], receivers=edges_index[:, 1])
 
         # process the graph
         for graph_processor in self.graph_processors:

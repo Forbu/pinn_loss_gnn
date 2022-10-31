@@ -7,13 +7,14 @@ import jax
 import jax.numpy as jnp
 
 import flax
+
+
+from pinn_loss import trainer, models
+
 from flax.training import train_state
-
-from pinn_loss import trainer
-from pinn_loss import models
-
-from flax.training import checkpoints
 from functools import partial
+
+import mlflow
 
 config_model = {
     "nb_layers": 2,
@@ -74,4 +75,41 @@ def test_simple_training():
     """
     Testing simple training pass to test the performance of the model
     """
-    pass
+    
+    # create PRNGKey
+    rng = jax.random.PRNGKey(0)
+
+    # create random nodes
+    nodes = jax.random.normal(rng, (100, 2))
+
+    # create random edges
+    edges = jax.random.normal(rng, (100, 2))
+
+    # create random edges index
+    edges_index = jax.random.randint(key = rng, shape = (100, 2), minval = 0, maxval = 100)
+
+    # create random target
+    target = jax.random.normal(rng, (100, 3))
+
+    # create train state
+    state, model_all = create_train_state(rng, config_model, config_trainer, config_input_init)
+
+    # mlflow set tracking uri localhost:5000
+    # mlflow.set_tracking_uri("http://localhost:5000")
+    # mlflow_logger = mlflow.tracking.MlflowClient()
+
+    # init trainer class
+    trainer_module = trainer.LightningFlax(model_all, state, config_trainer, None)
+
+    # init batch
+    batch = {
+        "nodes": nodes,
+        "edges": edges,
+        "edges_index": edges_index,
+        "target": target,
+    }
+
+    # train model with simple training step
+    trainer_module.training_step(batch, batch_idx=0)
+
+
