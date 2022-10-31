@@ -79,17 +79,19 @@ def test_simple_training():
     # create PRNGKey
     rng = jax.random.PRNGKey(0)
 
+    nb_nodes = 1000
+
     # create random nodes
-    nodes = jax.random.normal(rng, (100, 2))
+    nodes = jax.random.normal(rng, (nb_nodes, 2))
 
     # create random edges
-    edges = jax.random.normal(rng, (100, 2))
+    edges = jax.random.normal(rng, (nb_nodes, 2))
 
     # create random edges index
-    edges_index = jax.random.randint(key = rng, shape = (100, 2), minval = 0, maxval = 100)
+    edges_index = jax.random.randint(key = rng, shape = (nb_nodes, 2), minval = 0, maxval = nb_nodes)
 
     # create random target
-    target = jax.random.normal(rng, (100, 3))
+    target = jax.random.normal(rng, (nb_nodes, 3))
 
     # create train state
     state, model_all = create_train_state(rng, config_model, config_trainer, config_input_init)
