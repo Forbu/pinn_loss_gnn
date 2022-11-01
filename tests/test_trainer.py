@@ -64,7 +64,16 @@ def test_simple_training():
     target = jax.random.normal(rng, (nb_nodes, 3))
 
     # create train state
-    state, model_all = trainer.create_train_state(rng, config_model, config_trainer, config_input_init)
+    model_all = models.ModelGnnPinn(**config_model)
+    params = model_all.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
+
+    optimizer = optax.chain(
+    optax.clip(1.0),
+    optax.adam(learning_rate=config_trainer["learning_rate"]),
+    )
+
+    state, model_all = train_state.TrainState.create(
+        apply_fn=model_all.apply, params=params, tx=optimizer), model_all
 
     # mlflow set tracking uri localhost:5000
     # mlflow.set_tracking_uri("http://localhost:5000")

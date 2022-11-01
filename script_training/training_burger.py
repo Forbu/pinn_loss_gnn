@@ -22,42 +22,20 @@ import torch
 import mlflow
 
 from flax import linen as nn
+from flax.training import train_state
+from flax import serialization
 
 from pinn_loss import trainer, models
+from pinn_loss.loss_operator import BurgerLoss
 
-class BurgerLoss(nn.Module):
-    """
-    Class that approximate the PDE loss on the graph
-    """
-    delta_t : float
-    index_edge_derivator: int
-    index_node_derivator: int
+import optax
 
-    def setup(self):
-        """
-        We need one spatial derivator and one temporal derivator
-        """
-        self.derivator = models.DerivativeOperator(index_edge_derivator=self.index_edge_derivator, index_node_derivator=self.index_node_derivator) # spatial derivator
-        self.tempo_derivator = models.TemporalDerivativeOperator(index_node_derivator=self.index_node_derivator, delta_t=self.delta_t) # temporal derivator
+import jax.numpy as jnp
+import jax
 
-    def __call__(self, nodes, edges, graph_index, nodes_t_1, mask=None):
-        """
-        Forward pass
-        """
-        # compute the spatial derivative
-        spatial_derivative = self.derivator(nodes, edges, graph_index)
+import json
 
-        # compute the temporal derivative
-        temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)
-
-        # compute the PDE loss
-        pde_loss = temporal_derivative + spatial_derivative * nodes[:, self.index_node_derivator]
-
-        # apply the mask
-        if mask is not None:
-            pde_loss = pde_loss * mask
-
-        return pde_loss
+from functools import partial
 
 config_trainer = {
     "batch_size": 1,
@@ -65,6 +43,17 @@ config_trainer = {
     "nb_epoch": 100,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
+}
+
+config_model = {
+"nb_layers": 2,
+"hidden_dims": 32,
+"input_dims_node_encoder":  1,
+"input_dims_edge_encoder":  1,
+"encoder_output_dims": 32,
+"input_dims_node_decoder": 32,
+"output_dims_node_decoder": 1,
+"mp_iteration": 5,
 }
 
 def create_graph(nb_space, delta_x, delta_t, nb_nodes, nb_edges=None):
@@ -133,7 +122,10 @@ def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, siz
 
     return dataloader
 
-def init_model_gnn(dataloader):
+def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_derivator=0):
+    """
+    This function initialize the model (gnn) but also the burgerloss operator
+    """
 
     # we retrieve only one element from the dataloader
     for batch in dataloader:
@@ -156,35 +148,54 @@ def init_model_gnn(dataloader):
     nb_nodes = nodes.shape[0]
     nb_edges = edges.shape[0]
 
-    config_model = {
-    "nb_layers": 2,
-    "hidden_dims": 32,
-    "input_dims_node_encoder":  1,
-    "input_dims_edge_encoder":  1,
-    "encoder_output_dims": 32,
-    "input_dims_node_decoder": 32,
-    "output_dims_node_decoder": 1,
-    "mp_iteration": 5,
-    }
-
-    config_input_init = {
-        "nodes": (nb_nodes, 1),
-        "edges": (nb_edges, 1),
-        "edges_index": (nb_edges, 2),
-    }
+    rng = jnp.random.PRNGKey(0)
 
     # create the model
-    state, model = trainer.create_train_state(config_model, config_trainer, config_input_init)
+    model = models.ModelGnnPinn(**config_model)
+    params = model_all.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
 
-    return state, model
+    optimizer = optax.chain(
+    optax.clip(1.0),
+    optax.adam(learning_rate=config_trainer["learning_rate"]),
+    )
+
+    state, model_all = train_state.TrainState.create(
+        apply_fn=model_all.apply, params=params, tx=optimizer), model_all
+
+    # here we can also initialize the burger loss operator
+    burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
+
+    # we can also init the BurgerLoss
+    params_burger = burger_loss.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
+
+    return state, model, burger_loss, params_burger
+
+@partial(jax.jit, static_argnums=(6,))
+def apply_model_derivative_target(state_main, params_burger=None, nodes=None, edges=None, edges_index=None, model_main=None, model_derivative=None):
+    """Computes gradients, loss and accuracy for a single batch."""
+    def loss_fn(params_main, params_derivative):
+        prediction = model_main.apply({'params': params_main}, nodes=nodes, edges=edges, edges_index=edges_index)
+
+        # compute derivative of the prediction
+        loss_derivative = model_derivative.apply({'params': params_derivative}, nodes=prediction, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
+
+        loss = jnp.mean(optax.l2_loss(loss_derivative))
+        return loss, prediction
+
+    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+    (loss, result), grads = grad_fn(state_main.params, params_burger)
+    return grads, loss
+
+def save_params_into_file(params, path):
+    """Save the params into a file"""
+    with open(path, "wb") as f:
+        json.dump(params, f)
 
 def main_train():
-
     """
     This function regroup all the main functions to train the GNN on the burger equation
     
     """
-
     # we choose the discretization of the space and the time
     nb_space = 100
     nb_time = 100
@@ -192,27 +203,8 @@ def main_train():
     delta_x = 1.0 / nb_space
     delta_t = 1.0 / nb_time
 
-    # we choose the number of hidden layers and the number of hidden units
-    nb_hidden_layers = 2
-    nb_hidden_units = 32
-
-    # we choose the number of iterations of the message passing
-    nb_iterations = 5
-
-    # we choose the number of epochs
-    nb_epochs = 1000
-
-    # we choose the learning rate
-    learning_rate = 1e-3
-
     # we choose the batch size
     batch_size = 1
-
-    # we choose the number of epochs between each save of the model
-    save_model_every_n_epoch = 10
-    
-    # we choose the number of steps between each save of the log
-    save_log_step_every_n_step = 10
 
     # we create space and time mesh
     space_mesh = np.linspace(0, 1, nb_space)
@@ -225,17 +217,44 @@ def main_train():
     dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size)
 
     # training scession with the dataloader and model with the pinn loss function
-    state, model = init_model_gnn(dataloader)
+    state, model, burger_loss, params_burger = init_model_gnn(dataloader)
 
-    mlflow.set_tracking_uri("http://localhost:5000")
-    mlflow_logger = mlflow.tracking.MlflowClient()
+    mlflow.set_tracking_uri("http://localhost:5000") # or what ever is your tracking url
+    experiment_id = mlflow.create_experiment(
+                            "Burger GNN", artifact_location="mlruns")
 
-    # we init the LightningFlax
-    lightning_flax = trainer.LightningFlax(model, state, logger=mlflow_logger)
+    class BurgerLightningFlax(trainer.LightningFlax):
+        def __init__(self, model, state, logger=None, config=None, params_burger=None):
+            super().__init__(model, state, logger, config)
+            self.params_burger = params_burger
 
-    
+        def training_step(self, batch, batch_idx):
+            
+            # we retrieve the data
+            nodes = batch["nodes"]
+            edges = batch["edges"]
+            edges_index = batch["edges_index"]
 
-    ############### TESTING ################
-    # here we will test the model on the custom initial condition
+            # squeeze the first dimension for all the tensors
+            nodes = nodes.squeeze(0)
+            edges = edges.squeeze(0)
+            edges_index = edges_index.squeeze(0)
 
+            # we compute the gradient of the loss function
+            grads, loss = apply_model_derivative_target(self.state, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
+
+            # we update the parameters
+            self.state = self.state.apply_gradients(grads=grads)
+
+            return loss
+
+    lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
+
+    lightning_flax.fit(dataloader, max_epochs=100, config_save=config_trainer)
+
+    # now we can save the model in state.params
+    dict_output = serialization.to_state_dict(state.params)
+
+    # we save the model
+    save_params_into_file(dict_output, "models_params/model_gnn.json")
 

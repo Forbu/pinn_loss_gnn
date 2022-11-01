@@ -57,21 +57,7 @@ def apply_model(state, nodes=None, edges=None, edges_index=None, target=None, mo
     (loss, result), grads = grad_fn(state.params)
     return grads, loss
 
-@partial(jax.jit, static_argnums=(6,))
-def apply_model_derivative_target(state_main, state_derivative=None, nodes=None, edges=None, edges_index=None, model_main=None, model_derivative=None):
-    """Computes gradients, loss and accuracy for a single batch."""
-    def loss_fn(params_main, params_derivative):
-        prediction = model_main.apply({'params': params_main}, nodes=nodes, edges=edges, edges_index=edges_index)
 
-        # compute derivative of the prediction
-        loss_derivative = model_derivative.apply({'params': params_derivative}, nodes=prediction, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
-
-        loss = jnp.mean(optax.l2_loss(loss_derivative))
-        return loss, prediction
-
-    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-    (loss, result), grads = grad_fn(state_main.params, state_derivative.params)
-    return grads, loss
 
 @partial(jax.jit, static_argnums=(4,))
 def eval(params, nodes=None, edges=None, edges_index=None, model_all=None):
@@ -125,7 +111,7 @@ class LightningFlax:
         train_loss = np.mean(epoch_loss)
         return train_loss
 
-    def fit(self, train_loader, validation_loader, save_model_every_n_epoch=100, save_log_step_every_n_step=100, config_save=None):
+    def fit(self, train_loader, validation_loader=None, save_model_every_n_epoch=100, save_log_step_every_n_step=100, config_save=None):
 
         self.train_loader = train_loader
         self.validation_loader = validation_loader
@@ -163,17 +149,10 @@ class LightningFlax:
                     # save the dict
                     np.savez_compressed("model_epoch_{}.npz".format(self.epoch), **dict_output)
 
-                    
-
     def training_step(self, batch, batch_idx):
-        
-        grads, loss = apply_model(self.state, nodes=batch["nodes"], edges=batch["edges"], edges_index=batch["edges_index"], target=batch["target"], model_main=self.model)
-
-        self.state = self.state.apply_gradients(grads=grads)
-
-        return loss
+        raise NotImplementedError
 
 
     def validation_step(self, batch, batch_idx):
-        pass
+        raise NotImplementedError
 
