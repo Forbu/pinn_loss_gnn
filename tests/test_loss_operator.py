@@ -105,13 +105,13 @@ def test_temporal_derivative_operator():
     delta_t = 0.01
 
     # init the DerivativeOperator (nn.Module)
-    derivative_operator = loss_operator.TemporalDerivativeOperator(index_node_derivator=0)
+    derivative_operator = loss_operator.TemporalDerivativeOperator(index_node_derivator=0,delta_t=delta_t)
 
     # init the loss operator
-    params = derivative_operator.init(rng, nodes, nodes_t1, delta_t)
+    params = derivative_operator.init(rng, nodes, None, None, nodes_t1)
 
     # apply the loss operator
-    y = derivative_operator.apply(params, nodes, nodes_t1, delta_t)
+    y = derivative_operator.apply(params, nodes, None, None, nodes_t1)
 
     assert y.shape == (10,)
 

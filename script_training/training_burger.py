@@ -19,6 +19,18 @@ import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 import torch
 
+import mlflow
+
+from pinn_loss import trainer, models
+
+config_trainer = {
+    "batch_size": 1,
+    "learning_rate": 1e-3,
+    "nb_epoch": 100,
+    "save_model_every_n_epoch": 10,
+    "save_log_step_every_n_step": 10,
+}
+
 def create_graph(nb_space, delta_x, delta_t, nb_nodes, nb_edges=None):
     """
     In the case of the burger equation, we have a 1D space : easy to create the graph (linear graph)
@@ -85,6 +97,51 @@ def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, siz
 
     return dataloader
 
+def init_model(dataloader):
+
+    # we retrieve only one element from the dataloader
+    for batch in dataloader:
+        break
+
+    # we retrieve the data
+    nodes = batch["nodes"]
+    edges = batch["edges"]
+    edges_index = batch["edges_index"]
+
+    # get target
+    target = batch["target"]
+
+    # squeeze the first dimension for all the tensors
+    nodes = nodes.squeeze(0)
+    edges = edges.squeeze(0)
+    edges_index = edges_index.squeeze(0)
+    target = target.squeeze(0)
+
+    nb_nodes = nodes.shape[0]
+    nb_edges = edges.shape[0]
+
+    config_model = {
+    "nb_layers": 2,
+    "hidden_dims": 32,
+    "input_dims_node_encoder":  1,
+    "input_dims_edge_encoder":  1,
+    "encoder_output_dims": 32,
+    "input_dims_node_decoder": 32,
+    "output_dims_node_decoder": 1,
+    "mp_iteration": 5,
+    }
+
+    config_input_init = {
+        "nodes": (nb_nodes, 1),
+        "edges": (nb_edges, 1),
+        "edges_index": (nb_edges, 2),
+    }
+
+    # create the model
+    state, model = trainer.create_train_state(config_model, config_trainer, config_input_init)
+
+    return state, model
+
 def main_train():
 
     """
@@ -132,9 +189,17 @@ def main_train():
     dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size)
 
     # training scession with the dataloader and model with the pinn loss function
+    state, model = init_model(dataloader)
 
+    mlflow.set_tracking_uri("http://localhost:5000")
+    mlflow_logger = mlflow.tracking.MlflowClient()
+
+    # we init the LightningFlax
+    lightning_flax = trainer.LightningFlax(model, state, logger=mlflow_logger)
+
+    
 
     ############### TESTING ################
     # here we will test the model on the custom initial condition
-    
+
 

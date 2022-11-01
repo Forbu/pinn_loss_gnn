@@ -35,14 +35,14 @@ class DerivativeOperator(nn.Module):
     def setup(self):
         self.graph_derivative_operator = jraph.GraphNetwork(update_edge_fn=local_derivator, update_node_fn=global_derivator)
 
-    def __call__(self, input_node, input_edge, graph_index):
+    def __call__(self, nodes=None, edges=None, graph_index=None, nodes_t_1=None):
         """
         Forward pass
         """
         # create the graph
-        graph = jraph.GraphsTuple(nodes=input_node[:, self.index_node_derivator], edges=input_edge[:, self.index_edge_derivator], globals=None,
+        graph = jraph.GraphsTuple(nodes=nodes[:, self.index_node_derivator], edges=edges[:, self.index_edge_derivator], globals=None,
                                                  senders=graph_index[:, 0], receivers=graph_index[:, 1],
-                                                 n_node=jnp.array([input_node.shape[0]]), n_edge=jnp.array([input_edge.shape[0]]))
+                                                 n_node=jnp.array([nodes.shape[0]]), n_edge=jnp.array([edges.shape[0]]))
 
         # apply the graph network
         y = self.graph_derivative_operator(graph)
@@ -59,16 +59,17 @@ class TemporalDerivativeOperator(nn.Module):
 
     """
     index_node_derivator: int
+    delta_t: float
 
     def setup(self):
         pass
 
-    def __call__(self, input_node_t_1, input_node_t, delta_t):
+    def __call__(self, nodes=None, edges=None, graph_index=None, nodes_t_1=None):
         """
         Forward pass
         """
         # compute the temporal derivative
-        y = (input_node_t - input_node_t_1) / delta_t
+        y = (nodes - nodes_t_1) / self.delta_t
 
         return y[:, self.index_node_derivator]
 
