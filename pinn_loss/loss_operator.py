@@ -5,8 +5,7 @@ import flax
 from flax import linen as nn
 
 import jraph
-
-from pinn_loss import utils
+from jraph._src import utils
 
 def local_derivator(edges, sent_attributes, received_attributes, global_attributes):
     """
@@ -33,7 +32,7 @@ class DerivativeOperator(nn.Module):
     index_node_derivator: int
 
     def setup(self):
-        self.graph_derivative_operator = jraph.GraphNetwork(update_edge_fn=local_derivator, update_node_fn=global_derivator)
+        self.graph_derivative_operator = jraph.GraphNetwork(update_edge_fn=local_derivator, update_node_fn=global_derivator, aggregate_edges_for_nodes_fn=utils.segment_mean)
 
     def __call__(self, nodes=None, edges=None, graph_index=None):
         """
