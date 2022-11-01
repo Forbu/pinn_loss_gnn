@@ -57,14 +57,14 @@ def apply_model(state, nodes=None, edges=None, edges_index=None, target=None, mo
     (loss, result), grads = grad_fn(state.params)
     return grads, loss
 
-@partial(jax.jit, static_argnums=(5,))
-def apply_model_derivative_target(state_main, state_derivative, nodes=None, edges=None, edges_index=None, model_main=None, model_derivative=None):
+@partial(jax.jit, static_argnums=(6,))
+def apply_model_derivative_target(state_main, state_derivative=None, nodes=None, edges=None, edges_index=None, model_main=None, model_derivative=None):
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params_main, params_derivative):
         prediction = model_main.apply({'params': params_main}, nodes=nodes, edges=edges, edges_index=edges_index)
 
         # compute derivative of the prediction
-        loss_derivative = model_derivative.apply({'params': params_derivative}, nodes=nodes, edges=edges, edges_index=edges_index, prediction=prediction)
+        loss_derivative = model_derivative.apply({'params': params_derivative}, nodes=prediction, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
 
         loss = jnp.mean(optax.l2_loss(loss_derivative))
         return loss, prediction

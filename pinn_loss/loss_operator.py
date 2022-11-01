@@ -35,7 +35,7 @@ class DerivativeOperator(nn.Module):
     def setup(self):
         self.graph_derivative_operator = jraph.GraphNetwork(update_edge_fn=local_derivator, update_node_fn=global_derivator)
 
-    def __call__(self, nodes=None, edges=None, graph_index=None, nodes_t_1=None):
+    def __call__(self, nodes=None, edges=None, graph_index=None):
         """
         Forward pass
         """
@@ -64,7 +64,7 @@ class TemporalDerivativeOperator(nn.Module):
     def setup(self):
         pass
 
-    def __call__(self, nodes=None, edges=None, graph_index=None, nodes_t_1=None):
+    def __call__(self, nodes=None, nodes_t_1=None):
         """
         Forward pass
         """

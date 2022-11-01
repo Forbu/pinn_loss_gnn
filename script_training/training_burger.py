@@ -21,7 +21,43 @@ import torch
 
 import mlflow
 
+from flax import linen as nn
+
 from pinn_loss import trainer, models
+
+class BurgerLoss(nn.Module):
+    """
+    Class that approximate the PDE loss on the graph
+    """
+    delta_t : float
+    index_edge_derivator: int
+    index_node_derivator: int
+
+    def setup(self):
+        """
+        We need one spatial derivator and one temporal derivator
+        """
+        self.derivator = models.DerivativeOperator(index_edge_derivator=self.index_edge_derivator, index_node_derivator=self.index_node_derivator) # spatial derivator
+        self.tempo_derivator = models.TemporalDerivativeOperator(index_node_derivator=self.index_node_derivator, delta_t=self.delta_t) # temporal derivator
+
+    def __call__(self, nodes, edges, graph_index, nodes_t_1, mask=None):
+        """
+        Forward pass
+        """
+        # compute the spatial derivative
+        spatial_derivative = self.derivator(nodes, edges, graph_index)
+
+        # compute the temporal derivative
+        temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)
+
+        # compute the PDE loss
+        pde_loss = temporal_derivative + spatial_derivative * nodes[:, self.index_node_derivator]
+
+        # apply the mask
+        if mask is not None:
+            pde_loss = pde_loss * mask
+
+        return pde_loss
 
 config_trainer = {
     "batch_size": 1,
@@ -97,7 +133,7 @@ def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, siz
 
     return dataloader
 
-def init_model(dataloader):
+def init_model_gnn(dataloader):
 
     # we retrieve only one element from the dataloader
     for batch in dataloader:
@@ -189,7 +225,7 @@ def main_train():
     dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size)
 
     # training scession with the dataloader and model with the pinn loss function
-    state, model = init_model(dataloader)
+    state, model = init_model_gnn(dataloader)
 
     mlflow.set_tracking_uri("http://localhost:5000")
     mlflow_logger = mlflow.tracking.MlflowClient()
