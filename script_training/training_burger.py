@@ -248,7 +248,7 @@ def main_train():
 
             return loss
 
-    lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
+    lightning_flax = BurgerLightningFlax(model, state, logger=None, config=config_trainer, params_burger=params_burger)
 
     lightning_flax.fit(dataloader, max_epochs=100, config_save=config_trainer)
 

@@ -1,0 +1,8 @@
+stages:
+  train_burger:
+    cmd: python3 -m script_training/training_burger.py
+    deps:
+    - pinn_loss/
+    - script_training/training_burger.py
+    outs:
+    - models_params/model_gnn.json
