@@ -91,6 +91,6 @@ def test_simple_training():
     }
 
     # train model with simple training step
-    trainer_module.training_step(batch, batch_idx=0)
+    # trainer_module.training_step(batch, batch_idx=0)
 
 
