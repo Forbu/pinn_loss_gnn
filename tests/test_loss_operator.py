@@ -98,12 +98,27 @@ def test_temporal_derivative_operator(rng, nodes, edges, edges_index, nodes_t_1)
 
     assert y.shape == (10,)
 
-def test_burger_loss():
+def test_burger_loss(rng, nodes, edges, edges_index, nodes_t_1):
     """
     Here we want to test the BurgerLoss operator
-    
     """
     
+    # create random nodes for t = 1
+    nodes_t1 = nodes_t_1
+
+    # init delta_t
+    delta_t = 0.01
+
+    # init the DerivativeOperator (nn.Module)
+    derivative_operator = loss_operator.BurgerLoss(index_node_derivator=0, index_edge_derivator=0, delta_t=delta_t)
+
+    # init the loss operator
+    params = derivative_operator.init(rng, nodes, edges, edges_index, nodes_t1)
+
+    # apply the loss operator
+    y = derivative_operator.apply(params, nodes, edges, edges_index, nodes_t1)
+
+    assert y.shape == (10,)
 
 
     
