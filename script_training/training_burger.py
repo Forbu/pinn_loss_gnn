@@ -13,6 +13,12 @@ With the following boundary conditions:
 The goal is to train a GNN to solve this PDE.
 
 """
+
+# using pinn_loss without installing the library
+import sys
+sys.path.append("/home/")
+
+
 import numpy as np
 
 # from pytorch import dataset / dataloader / tensordataset
@@ -37,10 +43,6 @@ import json
 
 from functools import partial
 
-# using pinns loss functions without installing the package
-import sys
-sys.path.append("../")
-
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
@@ -60,7 +62,7 @@ config_model = {
 "mp_iteration": 5,
 }
 
-def create_graph(nb_space, delta_x, delta_t, nb_nodes, nb_edges=None):
+def create_graph(nb_space, delta_x, nb_nodes=None, nb_edges=None):
     """
     In the case of the burger equation, we have a 1D space : easy to create the graph (linear graph)
     """
@@ -89,6 +91,12 @@ def create_graph(nb_space, delta_x, delta_t, nb_nodes, nb_edges=None):
     edges_index[(nb_space - 1):, 0] = np.arange(1, nb_space)
     edges_index[(nb_space - 1):, 1] = np.arange(nb_space - 1)
 
+    # we check the number of nodes and edges
+    if nb_nodes is not None:
+        assert nb_nodes == nb_space, "The number of nodes is not correct"
+    if nb_edges is not None:
+        assert nb_edges == (nb_space - 1) * 2, "The number of edges is not correct"
+
     return edges, edges_index
 
 def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, size_dataset=100000):
@@ -103,11 +111,11 @@ def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, siz
     noise = np.random.normal(0., 1., size=(size_dataset, nb_space))
 
     # we create the initial condition by adding a gaussian noise to create a random initial condition
-    dataset = np.cumsum(noise) * delta_x
+    dataset = np.cumsum(noise, axis=1) * delta_x
 
     # now we have to create the graph associated to the dataset
     # we create the graph
-    edges, edges_index = create_graph(nb_space, delta_x, delta_t)
+    edges, edges_index = create_graph(nb_space, delta_x, nb_nodes=nb_space, nb_edges=(nb_space - 1) * 2)
 
     class BurgerDataset(torch.utils.data.Dataset):
         def __init__(self, dataset, edges, edges_index):
@@ -119,7 +127,7 @@ def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, siz
             return len(self.dataset)
 
         def __getitem__(self, idx):
-            return self.dataset[idx], self.edges, self.edges_index
+            return {"nodes" : self.dataset[idx], "edges" : self.edges, "edges_index" : self.edges_index}
 
     # create the dataloader
     dataloader = DataLoader(BurgerDataset(dataset, edges, edges_index), batch_size=batch_size, shuffle=True)
@@ -135,36 +143,35 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     for batch in dataloader:
         break
 
+    print(batch)
+
     # we retrieve the data
     nodes = batch["nodes"]
     edges = batch["edges"]
     edges_index = batch["edges_index"]
 
-    # get target
-    target = batch["target"]
-
     # squeeze the first dimension for all the tensors
     nodes = nodes.squeeze(0)
     edges = edges.squeeze(0)
     edges_index = edges_index.squeeze(0)
-    target = target.squeeze(0)
+
 
     nb_nodes = nodes.shape[0]
     nb_edges = edges.shape[0]
 
-    rng = jnp.random.PRNGKey(0)
+    rng = jax.random.PRNGKey(0)
 
     # create the model
     model = models.ModelGnnPinn(**config_model)
-    params = model_all.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
+    params = model.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
 
     optimizer = optax.chain(
     optax.clip(1.0),
     optax.adam(learning_rate=config_trainer["learning_rate"]),
     )
 
-    state, model_all = train_state.TrainState.create(
-        apply_fn=model_all.apply, params=params, tx=optimizer), model_all
+    state, model = train_state.TrainState.create(
+        apply_fn=model.apply, params=params, tx=optimizer), model
 
     # here we can also initialize the burger loss operator
     burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
@@ -252,7 +259,6 @@ def main_train():
             return loss
 
     lightning_flax = BurgerLightningFlax(model, state, logger=None, config=config_trainer, params_burger=params_burger)
-
     lightning_flax.fit(dataloader, max_epochs=100, config_save=config_trainer)
 
     # now we can save the model in state.params
@@ -261,3 +267,5 @@ def main_train():
     # we save the model
     save_params_into_file(dict_output, "models_params/model_gnn.json")
 
+if __name__ == "__main__":
+    main_train()
