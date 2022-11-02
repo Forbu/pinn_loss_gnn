@@ -94,12 +94,12 @@ class LightningFlax:
 
             # Log metrics if loger is here
             if batch_idx % self.log_every_n_step == 0:
-                self.log_metrics({"train_loss_step": loss})
+                self.log_metrics({"train_loss_step": loss.item()})
 
         train_loss = np.mean(epoch_loss)
         
         # Log metrics
-        self.log_metrics({"train_loss_epoch": train_loss})
+        self.log_metrics({"train_loss_epoch": train_loss.item()})
         
         return train_loss
 
@@ -114,12 +114,12 @@ class LightningFlax:
 
             # Log metrics if loger is here
             if batch_idx % self.log_every_n_step == 0:
-                self.log_metrics({"val_loss_step": loss})
+                self.log_metrics({"val_loss_step": loss.item()})
 
         train_loss = np.mean(epoch_loss)
 
         # Log metrics
-        self.log_metrics({"val_loss_epoch": train_loss})
+        self.log_metrics({"val_loss_epoch": train_loss.item()})
 
         return train_loss
 
@@ -150,12 +150,6 @@ class LightningFlax:
                 ## we send the log to wandb
                 print("training loss for the epoch {} : {}".format(epoch, train_loss))
 
-                if validation:
-                    print("validation loss for the epoch {} : {}".format(epoch, valid_loss))
-                    self.logger.log({"train_loss": float(train_loss), "val_loss": float(valid_loss), "epoch": epoch})
-                else:
-                    self.logger.log({"train_loss": float(train_loss), "epoch": epoch})
-
                 if (self.epoch % save_model_every_n_epoch) == 0: 
                     # save state.params using flax.serialization.to_bytes
                     dict_output = serialization.to_state_dict(self.state.params)
@@ -163,11 +157,19 @@ class LightningFlax:
                     # save the dict
                     np.savez_compressed("model_epoch_{}.npz".format(self.epoch), **dict_output)
 
+        self.end_fit()
+
     def fit_init(self):
         """
         Init different things before running a fit (logger etc ...)
         """
         raise NotImplementedError
+
+    def end_fit(self):
+        """
+        End of the fit (save model etc ...)
+        """
+        pass
 
     def log_metrics(self, log_dict):
         """

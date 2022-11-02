@@ -244,6 +244,9 @@ def main_train():
             
             mlflow.start_run()
 
+        def end_fit(self):
+            mlflow.end_run()
+
         def log_metrics(self, dict_log):
             
             # we log the metrics using mlflow log_metrics
