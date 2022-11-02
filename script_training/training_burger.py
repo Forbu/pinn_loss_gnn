@@ -37,6 +37,10 @@ import json
 
 from functools import partial
 
+# using pinns loss functions without installing the package
+import sys
+sys.path.append("../")
+
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
@@ -194,7 +198,6 @@ def save_params_into_file(params, path):
 def main_train():
     """
     This function regroup all the main functions to train the GNN on the burger equation
-    
     """
     # we choose the discretization of the space and the time
     nb_space = 100

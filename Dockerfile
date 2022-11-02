@@ -17,17 +17,20 @@ RUN pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-rele
 # install flax
 RUN pip install flax
 
-# install mlflow
+# install mlflow (for metrics tracking)
 RUN pip install mlflow==1.27.0
 
-# install optax
+# install optax (for flax)
 RUN pip install optax
 
-# install jraph for graph prcessing
+# install jraph (for graph prcessing)
 RUN pip install jraph
 
-# install pytest
+# install pytest (for testing)
 RUN pip install pytest
 
-# install dvc
+# install dvc (model versioning)
 RUN pip install dvc
+
+# install torch (only to use the dataloder / dataset capabilities)
+RUN pip install torch
