@@ -132,6 +132,8 @@ class LightningFlax:
 
         validation = self.validation_loader is not None
 
+        self.fit_init()
+
         if config_save is not None:
             self.config = config_save
 
@@ -160,6 +162,12 @@ class LightningFlax:
 
                     # save the dict
                     np.savez_compressed("model_epoch_{}.npz".format(self.epoch), **dict_output)
+
+    def fit_init(self):
+        """
+        Init different things before running a fit (logger etc ...)
+        """
+        raise NotImplementedError
 
     def log_metrics(self, log_dict):
         """

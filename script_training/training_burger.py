@@ -236,6 +236,19 @@ def main_train():
             super().__init__(model, state, logger, config)
             self.params_burger = params_burger
 
+        def fit_init(self):
+            
+            # set experiment (if not already set or already set to another experiment)
+            if not mlflow.active_run() or mlflow.active_run().info.experiment_id != 1:
+                mlflow.set_experiment("burger_loss")
+            
+            mlflow.start_run()
+
+        def log_metrics(self, dict_log):
+            
+            # we log the metrics using mlflow log_metrics
+            mlflow.log_metrics(dict_log)
+
         def training_step(self, batch, batch_idx):
             
             # we retrieve the data
@@ -261,7 +274,7 @@ def main_train():
 
             return loss
 
-    lightning_flax = BurgerLightningFlax(model, state, logger=None, config=config_trainer, params_burger=params_burger)
+    lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
     lightning_flax.fit(train_loader=dataloader, config_save=config_trainer)
 
     # now we can save the model in state.params
