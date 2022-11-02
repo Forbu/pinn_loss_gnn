@@ -159,7 +159,7 @@ def test_ModelGnnPinn_BigGraph():
 
     mp_iteration = 5
 
-    nb_node = 40000
+    nb_node = 100
 
     # init model
     modelgnnpinn = models.ModelGnnPinn(nb_layers=nb_layers, hidden_dims=hidden_dims, input_dims_node_encoder=input_dims_node_encoder,

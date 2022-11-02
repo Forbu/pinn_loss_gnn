@@ -89,12 +89,12 @@ class BurgerLoss(nn.Module):
         self.derivator = DerivativeOperator(index_edge_derivator=self.index_edge_derivator, index_node_derivator=self.index_node_derivator) # spatial derivator
         self.tempo_derivator = TemporalDerivativeOperator(index_node_derivator=self.index_node_derivator, delta_t=self.delta_t) # temporal derivator
 
-    def __call__(self, nodes, edges, graph_index, nodes_t_1, mask=None):
+    def __call__(self, nodes, edges, edges_index, nodes_t_1, mask=None):
         """
         Forward pass
         """
         # compute the spatial derivative
-        spatial_derivative = self.derivator(nodes, edges, graph_index)
+        spatial_derivative = self.derivator(nodes, edges, edges_index)
 
         # compute the temporal derivative
         temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)

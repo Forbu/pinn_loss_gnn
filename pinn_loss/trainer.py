@@ -13,7 +13,7 @@ from flax import serialization
 
 from functools import partial
 
-import tqdm
+from tqdm import tqdm
 
 import numpy as np
 
@@ -91,7 +91,7 @@ class LightningFlax:
 
         epoch_loss = []
 
-        for batch_idx, batch in enumerate(tqdm(self.train_load)):
+        for batch_idx, batch in enumerate(tqdm(self.train_loader)):
             loss = self.training_step(batch, batch_idx)
 
             epoch_loss.append(loss)
@@ -123,7 +123,7 @@ class LightningFlax:
         if config_save is not None:
             self.config = config_save
 
-        for epoch in range(self.config.num_epochs):
+        for epoch in range(self.config["nb_epoch"]):
             self.epoch = epoch
 
             train_loss = self.training_epoch()

@@ -49,7 +49,7 @@ def test_simple_training():
     # create PRNGKey
     rng = jax.random.PRNGKey(0)
 
-    nb_nodes = 1000
+    nb_nodes = 100
 
     # create random nodes
     nodes = jax.random.normal(rng, (nb_nodes, 2))

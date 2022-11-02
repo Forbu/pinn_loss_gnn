@@ -143,21 +143,20 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     for batch in dataloader:
         break
 
-    print(batch)
-
     # we retrieve the data
     nodes = batch["nodes"]
     edges = batch["edges"]
     edges_index = batch["edges_index"]
 
     # squeeze the first dimension for all the tensors
-    nodes = nodes.squeeze(0)
+    nodes = nodes.squeeze(0).unsqueeze(-1)
     edges = edges.squeeze(0)
     edges_index = edges_index.squeeze(0)
 
-
-    nb_nodes = nodes.shape[0]
-    nb_edges = edges.shape[0]
+    # convert tensor to jnp array
+    nodes = jnp.array(nodes)
+    edges = jnp.array(edges)
+    edges_index = jnp.array(edges_index)
 
     rng = jax.random.PRNGKey(0)
 
@@ -177,11 +176,11 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
 
     # we can also init the BurgerLoss
-    params_burger = burger_loss.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
+    params_burger = burger_loss.init(rng, nodes=nodes, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
 
     return state, model, burger_loss, params_burger
 
-@partial(jax.jit, static_argnums=(6,))
+@partial(jax.jit, static_argnums=(5, 6,))
 def apply_model_derivative_target(state_main, params_burger=None, nodes=None, edges=None, edges_index=None, model_main=None, model_derivative=None):
     """Computes gradients, loss and accuracy for a single batch."""
     def loss_fn(params_main, params_derivative):
@@ -229,9 +228,13 @@ def main_train():
     # training scession with the dataloader and model with the pinn loss function
     state, model, burger_loss, params_burger = init_model_gnn(dataloader)
 
-    mlflow.set_tracking_uri("http://localhost:5000") # or what ever is your tracking url
-    experiment_id = mlflow.create_experiment(
-                            "Burger GNN", artifact_location="mlruns")
+    mlflow.set_tracking_uri("file://home/mlruns/") # or what ever is your tracking url
+
+    try:
+        experiment_id = mlflow.create_experiment(
+                            "burger_gnn", artifact_location="mlruns")
+    except:
+        experiment_id = mlflow.get_experiment_by_name("burger_gnn").experiment_id
 
     class BurgerLightningFlax(trainer.LightningFlax):
         def __init__(self, model, state, logger=None, config=None, params_burger=None):
@@ -246,9 +249,14 @@ def main_train():
             edges_index = batch["edges_index"]
 
             # squeeze the first dimension for all the tensors
-            nodes = nodes.squeeze(0)
+            nodes = nodes.squeeze(0).unsqueeze(-1)
             edges = edges.squeeze(0)
             edges_index = edges_index.squeeze(0)
+
+            # convert tensor to jnp array
+            nodes = jnp.array(nodes)
+            edges = jnp.array(edges)
+            edges_index = jnp.array(edges_index)
 
             # we compute the gradient of the loss function
             grads, loss = apply_model_derivative_target(self.state, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
@@ -259,7 +267,7 @@ def main_train():
             return loss
 
     lightning_flax = BurgerLightningFlax(model, state, logger=None, config=config_trainer, params_burger=params_burger)
-    lightning_flax.fit(dataloader, max_epochs=100, config_save=config_trainer)
+    lightning_flax.fit(train_loader=dataloader, config_save=config_trainer)
 
     # now we can save the model in state.params
     dict_output = serialization.to_state_dict(state.params)
