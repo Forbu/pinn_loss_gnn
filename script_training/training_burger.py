@@ -26,6 +26,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch
 
 import mlflow
+from mlflow.tracking import context, MlflowClient
 
 from flax import linen as nn
 from flax.training import train_state
@@ -229,12 +230,6 @@ def main_train():
     state, model, burger_loss, params_burger = init_model_gnn(dataloader)
 
     mlflow.set_tracking_uri("file://home/mlruns/") # or what ever is your tracking url
-
-    try:
-        experiment_id = mlflow.create_experiment(
-                            "burger_gnn", artifact_location="mlruns")
-    except:
-        experiment_id = mlflow.get_experiment_by_name("burger_gnn").experiment_id
 
     class BurgerLightningFlax(trainer.LightningFlax):
         def __init__(self, model, state, logger=None, config=None, params_burger=None):

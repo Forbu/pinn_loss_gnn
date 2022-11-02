@@ -44,9 +44,7 @@ def create_train_state(rng, config_model, config_trainer, config_input_init):
 def apply_model(state, nodes=None, edges=None, edges_index=None, target=None, model_main=None):
     """
     Computes gradients, loss and accuracy for a single batch.
-    
     This function return the grad and loss for a single batch using classic supervised learning
-
     """
     def loss_fn(params):
         result = model_main.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
@@ -57,12 +55,10 @@ def apply_model(state, nodes=None, edges=None, edges_index=None, target=None, mo
     (loss, result), grads = grad_fn(state.params)
     return grads, loss
 
-
-
 @partial(jax.jit, static_argnums=(4,))
 def eval(params, nodes=None, edges=None, edges_index=None, model_all=None):
     """
-    TODO rework for use case
+    Rework for use case
     """
     result = model_all.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
     return result
@@ -71,13 +67,14 @@ class LightningFlax:
     """
     Class that manage the flax training in the same way that lightning does (but with jax this time)
     """
-    def __init__(self, model, state, logger=None, config=None):
+    def __init__(self, model, state, logger=None, config=None, log_every_n_step=100):
         
         self.model = model
         self.state = state
         self.config = config
         
         self.logger = logger
+        self.log_every_n_step = log_every_n_step
 
         self.check_config()
 
@@ -88,7 +85,6 @@ class LightningFlax:
         """
         Class that manage the training epoch
         """
-
         epoch_loss = []
 
         for batch_idx, batch in enumerate(tqdm(self.train_loader)):
@@ -96,7 +92,15 @@ class LightningFlax:
 
             epoch_loss.append(loss)
 
+            # Log metrics if loger is here
+            if batch_idx % self.log_every_n_step == 0:
+                self.log_metrics({"train_loss_step": loss})
+
         train_loss = np.mean(epoch_loss)
+        
+        # Log metrics
+        self.log_metrics({"train_loss_epoch": train_loss})
+        
         return train_loss
 
     def validation_epoch(self, batch, batch_idx):
@@ -108,7 +112,15 @@ class LightningFlax:
 
             epoch_loss.append(loss)
 
+            # Log metrics if loger is here
+            if batch_idx % self.log_every_n_step == 0:
+                self.log_metrics({"val_loss_step": loss})
+
         train_loss = np.mean(epoch_loss)
+
+        # Log metrics
+        self.log_metrics({"val_loss_epoch": train_loss})
+
         return train_loss
 
     def fit(self, train_loader, validation_loader=None, save_model_every_n_epoch=100, save_log_step_every_n_step=100, config_save=None):
@@ -149,9 +161,14 @@ class LightningFlax:
                     # save the dict
                     np.savez_compressed("model_epoch_{}.npz".format(self.epoch), **dict_output)
 
-    def training_step(self, batch, batch_idx):
+    def log_metrics(self, log_dict):
+        """
+        Log metrics to the logger
+        """
         raise NotImplementedError
 
+    def training_step(self, batch, batch_idx):
+        raise NotImplementedError
 
     def validation_step(self, batch, batch_idx):
         raise NotImplementedError
