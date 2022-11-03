@@ -54,7 +54,7 @@ from matplotlib import pyplot as plt
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
-    "nb_epoch": 1,
+    "nb_epoch": 2,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
 }
@@ -107,7 +107,7 @@ def create_graph(nb_space, delta_x, nb_nodes=None, nb_edges=None):
 
     return edges, edges_index
 
-def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=10000):
+def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=20000):
     """
     Creation of the dataset for the burger equation
     We have to create a continuous function and the nn will have to approximate the next temporal step of the PDE
