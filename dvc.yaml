@@ -1,0 +1,15 @@
+stages:
+  train:
+    cmd: python3 script_training/training_burger.py
+    deps:
+    - script_training/training_burger
+    outs:
+    - models_params/model_gnn.json
+  eval:
+    cmd: python3 script_training/training_burger.py
+    deps:
+    - models_params/model_gnn.json
+    - script_training/training_burger.py
+    metrics:
+    - metrics/metrics.json
+    - metrics/metrics_random_sample.json
