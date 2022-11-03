@@ -105,7 +105,7 @@ def create_graph(nb_space, delta_x, nb_nodes=None, nb_edges=None):
 
     return edges, edges_index
 
-def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, size_dataset=10000):
+def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=10000):
     """
     Creation of the dataset for the burger equation
     We have to create a continuous function and the nn will have to approximate the next temporal step of the PDE
@@ -235,10 +235,10 @@ def main_train():
 
     ############### TRAINING ################
     # now we can create the dataloader
-    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size, size_dataset=10000)
+    dataloader = create_burger_dataset(nb_space, delta_x, batch_size=batch_size, size_dataset=10000)
 
     # training scession with the dataloader and model with the pinn loss function
-    state, model, burger_loss, params_burger = init_model_gnn(dataloader)
+    state, model, burger_loss, params_burger = init_model_gnn(dataloader, delta_t=delta_t)
 
     mlflow.set_tracking_uri("http://localhost:5000") # or what ever is your tracking url
 
@@ -306,6 +306,8 @@ def main_train():
 
             loss = eval_gnn_model(self.state.params, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
 
+            print("loss", loss)
+
             return loss
 
     lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
@@ -349,10 +351,10 @@ def main_eval():
     edges_index = jnp.array(edges_index)
 
     # init the model
-    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size, size_dataset=1000)
+    dataloader = create_burger_dataset(nb_space, delta_x, batch_size=batch_size, size_dataset=1000)
 
     # training scession with the dataloader and model with the pinn loss function
-    state, model, burger_loss, params_burger = init_model_gnn(dataloader)
+    state, model, burger_loss, params_burger = init_model_gnn(dataloader, delta_t=delta_t)
 
     eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_time, params_burger, burger_loss)
 
@@ -440,9 +442,8 @@ def eval_random_dataset(model, params, params_burger, burger_loss, dataloader):
 
         performance_pde_loss += pde_loss.item()
 
+    print("dataloader lenght : ", len(dataloader))
     print("The average pde loss is {}".format(performance_pde_loss / len(dataloader)))
-
-
 
 if __name__ == "__main__":
 
