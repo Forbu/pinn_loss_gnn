@@ -143,7 +143,7 @@ def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=10000):
     # we generate size_dataset sinus initial condition
     # frequency are int between 1 and 5
     # scale are float between 0.5 and 5
-    frequency = np.random.randint(1, 5, size=size_dataset)
+    frequency = np.random.randint(1, 3, size=size_dataset)
     scale = np.random.uniform(0.5, 5., size=size_dataset)
 
     sinus_dataset = np.array([get_sinus_init(frequency[i], scale[i]) for i in range(size_dataset)])
@@ -193,7 +193,7 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
 
     state, model = train_state.TrainState.create(
-        apply_fn=model.apply, params=params, tx=optimizer), model
+        apply_fn=model.apply, params=params, tx=optimizer_accumulation), model
 
     # here we can also initialize the burger loss operator
     burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
