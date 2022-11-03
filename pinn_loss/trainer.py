@@ -151,12 +151,8 @@ class LightningFlax:
                 print("training loss for the epoch {} : {}".format(epoch, train_loss))
 
                 if (self.epoch % save_model_every_n_epoch) == 0: 
-                    # save state.params using flax.serialization.to_bytes
-                    dict_output = serialization.to_state_dict(self.state.params)
-
-                    # save the dict
-                    np.savez_compressed("model_epoch_{}.npz".format(self.epoch), **dict_output)
-
+                    pass
+                
         self.end_fit()
 
     def fit_init(self):

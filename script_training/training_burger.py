@@ -44,10 +44,16 @@ import json
 
 from functools import partial
 
+import pickle
+
+import argparse
+
+from matplotlib import pyplot as plt
+
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
-    "nb_epoch": 100,
+    "nb_epoch": 1,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
 }
@@ -100,7 +106,7 @@ def create_graph(nb_space, delta_x, nb_nodes=None, nb_edges=None):
 
     return edges, edges_index
 
-def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, size_dataset=100000):
+def create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=1, size_dataset=10000):
     """
     Creation of the dataset for the burger equation
     We have to create a continuous function and the nn will have to approximate the next temporal step of the PDE
@@ -198,9 +204,9 @@ def apply_model_derivative_target(state_main, params_burger=None, nodes=None, ed
     return grads, loss
 
 def save_params_into_file(params, path):
-    """Save the params into a file"""
+    """Save the params into a file using pickle"""
     with open(path, "wb") as f:
-        json.dump(params, f)
+        pickle.dump(params, f)
 
 def main_train():
     """
@@ -216,20 +222,14 @@ def main_train():
     # we choose the batch size
     batch_size = 1
 
-    # we create space and time mesh
-    space_mesh = np.linspace(0, 1, nb_space)
-
-    # we create the initial condition
-    initial_condition = np.sin(np.pi * space_mesh)
-
     ############### TRAINING ################
     # now we can create the dataloader
-    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size)
+    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size, size_dataset=10000)
 
     # training scession with the dataloader and model with the pinn loss function
     state, model, burger_loss, params_burger = init_model_gnn(dataloader)
 
-    mlflow.set_tracking_uri("file://home/mlruns/") # or what ever is your tracking url
+    mlflow.set_tracking_uri("http://localhost:5000") # or what ever is your tracking url
 
     class BurgerLightningFlax(trainer.LightningFlax):
         def __init__(self, model, state, logger=None, config=None, params_burger=None):
@@ -280,11 +280,77 @@ def main_train():
     lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
     lightning_flax.fit(train_loader=dataloader, config_save=config_trainer)
 
-    # now we can save the model in state.params
-    dict_output = serialization.to_state_dict(state.params)
-
     # we save the model
-    save_params_into_file(dict_output, "models_params/model_gnn.json")
+    save_params_into_file(state.params, "models_params/model_gnn.json")
+
+def main_eval():
+    # evaluation session with a custom limit condition
+    # we load the model
+    with open("models_params/model_gnn.json", "rb") as f:
+        params = pickle.load(f)
+
+    # we create the dataset
+    nb_space = 100
+    nb_time = 100
+
+    delta_x = 1.0 / nb_space
+    delta_t = 1.0 / nb_time
+
+    # we choose the batch size
+    batch_size = 1
+
+    # we create space and time mesh
+    space_mesh = np.linspace(0, 1, nb_space)
+
+    # we create the initial condition
+    initial_condition = np.sin(np.pi * space_mesh)
+
+    # we get the edges and the edges index
+    edges, edges_index = create_graph(nb_space, delta_x=delta_x)
+
+    # now we convert everything to jnp array
+    nodes = jnp.array(initial_condition)
+    edges = jnp.array(edges)
+    edges_index = jnp.array(edges_index)
+
+    results = jnp.zeros((nb_space, nb_time))
+
+    # init the model
+    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size, size_dataset=100)
+
+    # training scession with the dataloader and model with the pinn loss function
+    state, model, burger_loss, params_burger = init_model_gnn(dataloader)
+
+    # now we can apply the model recursively
+    for i in range(nb_time):
+        # we apply the model
+        results[:, i] = model.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
+
+        # we update the nodes
+        nodes = results[:, i]
+
+        # we force the boundary condition and the first and last nodes
+        nodes = jax.ops.index_update(nodes, jax.ops.index[0], 0.0)
+        nodes = jax.ops.index_update(nodes, jax.ops.index[-1], 0.0)
+
+    # we plot the results
+    plt.figure()
+    plt.imshow(results)
+    plt.show()
+
+    # we save the image of the plot
+    plt.savefig("plots/results.png")
 
 if __name__ == "__main__":
-    main_train()
+
+    # we retrieve the arguments to know if we are in training or testing mode
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", type=str, default="train", help="train or test")
+
+    args = parser.parse_args()
+
+    if args.mode == "train":
+        main_train()
+    else:
+        main_eval()
+

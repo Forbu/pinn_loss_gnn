@@ -34,3 +34,6 @@ RUN pip install dvc
 
 # install torch (only to use the dataloder / dataset capabilities)
 RUN pip install torch
+
+# install matplotlib (for plotting)
+RUN pip install matplotlib
