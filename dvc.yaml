@@ -2,11 +2,11 @@ stages:
   train:
     cmd: python3 script_training/training_burger.py
     deps:
-    - script_training/training_burger
+    - script_training/training_burger.py
     outs:
     - models_params/model_gnn.json
   eval:
-    cmd: python3 script_training/training_burger.py
+    cmd: python3 script_training/training_burger.py --mode eval
     deps:
     - models_params/model_gnn.json
     - script_training/training_burger.py

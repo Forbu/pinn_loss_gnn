@@ -154,7 +154,7 @@ def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=10000):
     dataset_sinus = BurgerDataset(sinus_dataset, edges, edges_index)
 
     # now we concat the two dataset
-    dataset = dataset_sinus
+    dataset = torch.utils.data.ConcatDataset([dataset_normal, dataset_sinus])
 
     # create the dataloader
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -434,6 +434,7 @@ def eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_t
 
     # save metrics for comparaison
     pde_loss_metrics = jnp.mean(optax.l2_loss(pde_loss))
+
 
     # we save the metrics
     with open("metrics/metrics.json", "w") as f:

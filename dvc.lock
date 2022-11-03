@@ -1,0 +1,28 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: python3 script_training/training_burger.py
+    deps:
+    - path: script_training/training_burger.py
+      md5: 0782340ad9ce04d9a54048fc90f395b1
+      size: 16968
+    outs:
+    - path: models_params/model_gnn.json
+      md5: 9c186da436ae33ddb4cb86c0e67675cb
+      size: 212617
+  eval:
+    cmd: python3 script_training/training_burger.py --mode eval
+    deps:
+    - path: models_params/model_gnn.json
+      md5: 9c186da436ae33ddb4cb86c0e67675cb
+      size: 212617
+    - path: script_training/training_burger.py
+      md5: 0782340ad9ce04d9a54048fc90f395b1
+      size: 16968
+    outs:
+    - path: metrics/metrics.json
+      md5: 456615b09a1c4632d7a35c9a5feb2d1b
+      size: 44
+    - path: metrics/metrics_random_sample.json
+      md5: d27aa2cea95a02df6a5aad45cb7f1af7
+      size: 45
