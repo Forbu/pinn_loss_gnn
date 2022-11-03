@@ -175,8 +175,10 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     optax.adam(learning_rate=config_trainer["learning_rate"]),
     )
 
+    optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
+
     state, model = train_state.TrainState.create(
-        apply_fn=model.apply, params=params, tx=optimizer), model
+        apply_fn=model.apply, params=params, tx=optimizer_accumulation), model
 
     # here we can also initialize the burger loss operator
     burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
