@@ -152,7 +152,7 @@ def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=10000):
     dataset_sinus = BurgerDataset(sinus_dataset, edges, edges_index)
 
     # now we concat the two dataset
-    dataset = torch.utils.data.ConcatDataset([dataset_normal, dataset_sinus])
+    dataset = dataset_sinus
 
     # create the dataloader
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -190,10 +190,10 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     params = model.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
 
     optimizer = optax.adam(learning_rate=config_trainer["learning_rate"])
-    optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
+    #optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
 
-    state, model = train_state.TrainState.create(
-        apply_fn=model.apply, params=params, tx=optimizer_accumulation), model
+    state = train_state.TrainState.create(
+        apply_fn=model.apply, params=params, tx=optimizer)
 
     # here we can also initialize the burger loss operator
     burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
@@ -229,7 +229,7 @@ def eval_gnn_model(params, params_burger, nodes, edges, edges_index, model, mode
     pred = model.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
     loss_derivative = model_derivative.apply({'params': params_burger}, nodes=pred, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
     loss = jnp.mean(optax.l2_loss(loss_derivative))
-    return loss
+    return pred, loss
 
 def save_params_into_file(params, path):
     """Save the params into a file using pickle"""
@@ -273,7 +273,7 @@ def main_train():
             mlflow.start_run()
 
         def end_fit(self):
-            mlflow.end_run()
+            pass
 
         def log_metrics(self, dict_log):
             
@@ -321,7 +321,7 @@ def main_train():
             edges = jnp.array(edges)
             edges_index = jnp.array(edges_index)
 
-            loss = eval_gnn_model(self.state.params, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
+            pred, loss = eval_gnn_model(self.state.params, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
 
             return loss
 
@@ -427,6 +427,13 @@ def eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_t
     # we save the image of the plot
     plt.savefig("plots/results_pde_loss.png")
 
+    # save metrics for comparaison
+    pde_loss_metrics = jnp.mean(optax.l2_loss(pde_loss))
+
+    # we save the metrics
+    with open("metrics/metrics.json", "w") as f:
+        json.dump({"pde_loss_custom_init": pde_loss_metrics.item()}, f)
+
 def eval_random_dataset(model, params, params_burger, burger_loss, dataloader):
     """
     In this function we eval the performance of on a random dataset
@@ -451,12 +458,23 @@ def eval_random_dataset(model, params, params_burger, burger_loss, dataloader):
         edges_index = jnp.array(edges_index)
 
         # directly compute the pde loss
-        pde_loss = eval_gnn_model(params, params_burger, nodes, edges, edges_index, model, burger_loss)
+        pred, pde_loss = eval_gnn_model(params, params_burger, nodes, edges, edges_index, model, burger_loss)
 
         performance_pde_loss += pde_loss.item()
 
     print("dataloader lenght : ", len(dataloader))
-    print("The average pde loss is {}".format(performance_pde_loss / len(dataloader)))
+
+    pde_loss = performance_pde_loss / len(dataloader)
+    pde_loss_dict = {"pde_loss_random_sample": pde_loss}
+
+    print("The average pde loss is {}".format(pde_loss))
+
+    # adding pde_loss to mlflow
+    mlflow.log_metrics(pde_loss_dict)
+
+    # also adding pde_loss_dict to metrics/ folder
+    with open("metrics/metrics_random_sample.json", "w") as f:
+        json.dump(pde_loss_dict, f)
 
 if __name__ == "__main__":
 
@@ -470,4 +488,6 @@ if __name__ == "__main__":
         main_train()
     else:
         main_eval()
+
+    mlflow.end_run()
 
