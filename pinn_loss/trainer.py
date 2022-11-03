@@ -149,10 +149,12 @@ class LightningFlax:
             if self.logger is not None:
                 ## we send the log to wandb
                 print("training loss for the epoch {} : {}".format(epoch, train_loss))
+                if validation:
+                    print("validation loss for the epoch {} : {}".format(epoch, valid_loss))
 
                 if (self.epoch % save_model_every_n_epoch) == 0: 
                     pass
-                
+
         self.end_fit()
 
     def fit_init(self):

@@ -43,10 +43,9 @@ import jax
 import json
 
 from functools import partial
-
 import pickle
-
 import argparse
+from tqdm import tqdm
 
 from matplotlib import pyplot as plt
 
@@ -203,6 +202,18 @@ def apply_model_derivative_target(state_main, params_burger=None, nodes=None, ed
     (loss, result), grads = grad_fn(state_main.params, params_burger)
     return grads, loss
 
+@partial(jax.jit, static_argnums=(4,))
+def pred_gnn_model(params, nodes, edges, edges_index, model):
+    pred = model.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
+    return pred
+
+@partial(jax.jit, static_argnums=(5, 6))
+def eval_gnn_model(params, params_burger, nodes, edges, edges_index, model, model_derivative):
+    pred = model.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
+    loss_derivative = model_derivative.apply({'params': params_burger}, nodes=pred, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
+    loss = jnp.mean(optax.l2_loss(loss_derivative))
+    return loss
+
 def save_params_into_file(params, path):
     """Save the params into a file using pickle"""
     with open(path, "wb") as f:
@@ -276,9 +287,29 @@ def main_train():
             self.state = self.state.apply_gradients(grads=grads)
 
             return loss
+        
+        def validation_step(self, batch, batch_idx):
+            # we retrieve the data
+            nodes = batch["nodes"]
+            edges = batch["edges"]
+            edges_index = batch["edges_index"]
+
+            # squeeze the first dimension for all the tensors
+            nodes = nodes.squeeze(0).unsqueeze(-1)
+            edges = edges.squeeze(0)
+            edges_index = edges_index.squeeze(0)
+
+            # convert tensor to jnp array
+            nodes = jnp.array(nodes)
+            edges = jnp.array(edges)
+            edges_index = jnp.array(edges_index)
+
+            loss = eval_gnn_model(self.state.params, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
+
+            return loss
 
     lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
-    lightning_flax.fit(train_loader=dataloader, config_save=config_trainer)
+    lightning_flax.fit(train_loader=dataloader, validation_loader=dataloader, config_save=config_trainer)
 
     # we save the model
     save_params_into_file(state.params, "models_params/model_gnn.json")
@@ -310,36 +341,108 @@ def main_eval():
 
     # now we convert everything to jnp array
     nodes = jnp.array(initial_condition)
+
+    # rework nodes to have the right shape (nb_nodes, 1)
+    nodes = nodes.reshape(-1, 1)
+
     edges = jnp.array(edges)
     edges_index = jnp.array(edges_index)
 
-    results = jnp.zeros((nb_space, nb_time))
-
     # init the model
-    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size, size_dataset=100)
+    dataloader = create_burger_dataset(nb_space, nb_time, delta_x, delta_t, batch_size=batch_size, size_dataset=1000)
 
     # training scession with the dataloader and model with the pinn loss function
     state, model, burger_loss, params_burger = init_model_gnn(dataloader)
 
+    eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_time, params_burger, burger_loss)
+
+    eval_random_dataset(model, params, params_burger, burger_loss, dataloader)
+
+def eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_time, params_burger, burger_loss):
+    
+    nb_space = nodes.shape[0]
+
+    results = jnp.zeros((nb_space, nb_time + 1))
+    results = results.at[:, 0].set(nodes[:, 0])
+
+    # here we record the pde_loss
+    pde_loss = jnp.zeros((nb_space, nb_time))
+
     # now we can apply the model recursively
-    for i in range(nb_time):
+    for i in tqdm(range(nb_time)):
         # we apply the model
-        results[:, i] = model.apply({'params': params}, nodes=nodes, edges=edges, edges_index=edges_index)
+        tmp = pred_gnn_model(params, nodes, edges, edges_index, model)
+
+        # we compute the loss
+        pde_loss_tmp = burger_loss.apply({'params': params_burger}, nodes=tmp, edges=edges, edges_index=edges_index, nodes_t_1=nodes)
+        pde_loss = pde_loss.at[:, i].set(pde_loss_tmp)
 
         # we update the nodes
-        nodes = results[:, i]
+        nodes = tmp
 
         # we force the boundary condition and the first and last nodes
-        nodes = jax.ops.index_update(nodes, jax.ops.index[0], 0.0)
-        nodes = jax.ops.index_update(nodes, jax.ops.index[-1], 0.0)
+        nodes = nodes.at[0, 0].set(0)
+        nodes = nodes.at[-1, 0].set(0)
 
-    # we plot the results
+        # we save the result using ops.index
+        results = results.at[:, i + 1].set(nodes[:, 0])
+
+    extend = 0, 1, 0, 1
+
+    # we plot the results for the prediction
     plt.figure()
-    plt.imshow(results)
+    plt.imshow(results, cmap="jet", extent=extend)
+
+    # adding colorbar
+    plt.colorbar()
     plt.show()
 
     # we save the image of the plot
-    plt.savefig("plots/results.png")
+    plt.savefig("plots/results_predictions.png")
+
+    # we plot the results for the pde loss
+    plt.figure()
+    plt.imshow(pde_loss, cmap="jet", extent=extend)
+
+    # adding colorbar
+    plt.colorbar()
+    plt.show()
+
+    # we save the image of the plot
+    plt.savefig("plots/results_pde_loss.png")
+
+def eval_random_dataset(model, params, params_burger, burger_loss, dataloader):
+    """
+    In this function we eval the performance of on a random dataset
+    """
+
+    performance_pde_loss = 0
+
+    for i, batch in enumerate(tqdm(dataloader)):
+
+        # we retrieve the data
+        nodes = batch["nodes"]
+        edges = batch["edges"]
+        edges_index = batch["edges_index"]
+
+        # squeeze the first dimension for all the tensors
+        nodes = nodes.squeeze(0).unsqueeze(-1)
+        edges = edges.squeeze(0)
+        edges_index = edges_index.squeeze(0)
+
+        # convert tensor to jnp array
+        nodes = jnp.array(nodes)
+        edges = jnp.array(edges)
+        edges_index = jnp.array(edges_index)
+
+        # directly compute the pde loss
+        pde_loss = eval_gnn_model(params, params_burger, nodes, edges, edges_index, model, burger_loss)
+
+        performance_pde_loss += pde_loss.item()
+
+    print("The average pde loss is {}".format(performance_pde_loss / len(dataloader)))
+
+
 
 if __name__ == "__main__":
 
