@@ -306,15 +306,13 @@ def main_train():
 
             loss = eval_gnn_model(self.state.params, self.params_burger, nodes, edges, edges_index, self.model, burger_loss)
 
-            print("loss", loss)
-
             return loss
 
     lightning_flax = BurgerLightningFlax(model, state, logger=mlflow, config=config_trainer, params_burger=params_burger)
     lightning_flax.fit(train_loader=dataloader, validation_loader=dataloader, config_save=config_trainer)
 
     # we save the model
-    save_params_into_file(state.params, "models_params/model_gnn.json")
+    save_params_into_file(lightning_flax.state.params, "models_params/model_gnn.json")
 
 def main_eval():
     # evaluation session with a custom limit condition
