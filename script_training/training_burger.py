@@ -1,3 +1,5 @@
+# training / eval for burger equation
+
 """
 This is the main file to train the GNN on the burger equation
 
@@ -189,7 +191,10 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     model = models.ModelGnnPinn(**config_model)
     params = model.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
 
-    optimizer = optax.adam(learning_rate=config_trainer["learning_rate"])
+    # optimizer is chain with clip and adam
+    optimizer = optax.chain(optax.clip(1.),
+             optax.adam(config_trainer["learning_rate"]))
+
     #optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
 
     state = train_state.TrainState.create(
@@ -468,9 +473,6 @@ def eval_random_dataset(model, params, params_burger, burger_loss, dataloader):
     pde_loss_dict = {"pde_loss_random_sample": pde_loss}
 
     print("The average pde loss is {}".format(pde_loss))
-
-    # adding pde_loss to mlflow
-    mlflow.log_metrics(pde_loss_dict)
 
     # also adding pde_loss_dict to metrics/ folder
     with open("metrics/metrics_random_sample.json", "w") as f:

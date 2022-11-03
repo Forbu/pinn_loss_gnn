@@ -10,6 +10,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && apt-get update && DEBIAN_FRONTEND=n
 # install pip
 RUN apt-get update && apt-get install -y python3-pip
 
+
 # install jax
 RUN pip3 install --upgrade pip
 RUN pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
@@ -37,3 +38,11 @@ RUN pip install torch
 
 # install matplotlib (for plotting)
 RUN pip install matplotlib
+
+# install git without asking for confirmation or geographic location
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y git
+
+
+RUN git config --global user.name "Adrien B"
+
+RUN git config --global user.email "forbu14@gmail.com"
