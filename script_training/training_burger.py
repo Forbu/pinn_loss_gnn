@@ -322,7 +322,7 @@ def main_eval():
 
     # we create the dataset
     nb_space = 100
-    nb_time = 1000
+    nb_time = 100
 
     delta_x = 1.0 / nb_space
     delta_t = 0.01
