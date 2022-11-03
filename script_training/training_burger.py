@@ -52,7 +52,7 @@ from matplotlib import pyplot as plt
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
-    "nb_epoch": 1,
+    "nb_epoch": 5,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
 }
@@ -322,10 +322,10 @@ def main_eval():
 
     # we create the dataset
     nb_space = 100
-    nb_time = 100
+    nb_time = 1000
 
     delta_x = 1.0 / nb_space
-    delta_t = 1.0 / nb_time
+    delta_t = 0.01
 
     # we choose the batch size
     batch_size = 1
@@ -334,7 +334,7 @@ def main_eval():
     space_mesh = np.linspace(0, 1, nb_space)
 
     # we create the initial condition
-    initial_condition = np.sin(np.pi * space_mesh)
+    initial_condition = np.sin(2 * np.pi * space_mesh)
 
     # we get the edges and the edges index
     edges, edges_index = create_graph(nb_space, delta_x=delta_x)
@@ -355,7 +355,6 @@ def main_eval():
     state, model, burger_loss, params_burger = init_model_gnn(dataloader, delta_t=delta_t)
 
     eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_time, params_burger, burger_loss)
-
     eval_random_dataset(model, params, params_burger, burger_loss, dataloader)
 
 def eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_time, params_burger, burger_loss):
