@@ -189,12 +189,8 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     model = models.ModelGnnPinn(**config_model)
     params = model.init(rng, nodes=nodes, edges=edges, edges_index=edges_index)["params"]
 
-    optimizer = optax.chain(
-    optax.clip(1.0),
-    optax.adam(learning_rate=config_trainer["learning_rate"]),
-    )
-
-    #optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
+    optimizer = optax.adam(learning_rate=config_trainer["learning_rate"])
+    optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
 
     state, model = train_state.TrainState.create(
         apply_fn=model.apply, params=params, tx=optimizer), model
@@ -435,7 +431,6 @@ def eval_random_dataset(model, params, params_burger, burger_loss, dataloader):
     """
     In this function we eval the performance of on a random dataset
     """
-
     performance_pde_loss = 0
 
     for i, batch in enumerate(tqdm(dataloader)):
