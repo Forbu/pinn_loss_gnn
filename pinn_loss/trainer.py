@@ -103,7 +103,7 @@ class LightningFlax:
         
         return train_loss
 
-    def validation_epoch(self, batch, batch_idx):
+    def validation_epoch(self):
 
         epoch_loss = []
 
