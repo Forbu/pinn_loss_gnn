@@ -52,7 +52,7 @@ from matplotlib import pyplot as plt
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
-    "nb_epoch": 5,
+    "nb_epoch": 1,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
 }
@@ -135,8 +135,27 @@ def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=10000):
         def __getitem__(self, idx):
             return {"nodes" : self.dataset[idx], "edges" : self.edges, "edges_index" : self.edges_index}
 
+    # we create another dataset with the some initial condition that look like a sinus
+    def get_sinus_init(frequency, scale):
+        initial_condition = np.sin(frequency * 2 * np.pi * space_mesh)
+        return initial_condition * scale 
+    
+    # we generate size_dataset sinus initial condition
+    # frequency are int between 1 and 5
+    # scale are float between 0.5 and 5
+    frequency = np.random.randint(1, 5, size=size_dataset)
+    scale = np.random.uniform(0.5, 5., size=size_dataset)
+
+    sinus_dataset = np.array([get_sinus_init(frequency[i], scale[i]) for i in range(size_dataset)])
+
+    dataset_normal = BurgerDataset(dataset, edges, edges_index)
+    dataset_sinus = BurgerDataset(sinus_dataset, edges, edges_index)
+
+    # now we concat the two dataset
+    dataset = torch.utils.data.ConcatDataset([dataset_normal, dataset_sinus])
+
     # create the dataloader
-    dataloader = DataLoader(BurgerDataset(dataset, edges, edges_index), batch_size=batch_size, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     return dataloader
 
@@ -175,10 +194,10 @@ def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_
     optax.adam(learning_rate=config_trainer["learning_rate"]),
     )
 
-    optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
+    #optimizer_accumulation = optax.MultiSteps(optimizer, every_k_schedule=8)
 
     state, model = train_state.TrainState.create(
-        apply_fn=model.apply, params=params, tx=optimizer_accumulation), model
+        apply_fn=model.apply, params=params, tx=optimizer), model
 
     # here we can also initialize the burger loss operator
     burger_loss = BurgerLoss(delta_t=delta_t, index_edge_derivator=index_edge_derivator, index_node_derivator=index_node_derivator)
