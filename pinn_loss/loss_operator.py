@@ -13,7 +13,7 @@ def local_derivator(edges, sent_attributes, received_attributes, global_attribut
     """
     # compute the local derivative of the loss function
     # basicly 
-    local_derivative = (sent_attributes - received_attributes) / edges
+    local_derivative = (received_attributes - sent_attributes) / edges
 
     return local_derivative
 
@@ -100,6 +100,34 @@ class BurgerLoss(nn.Module):
         temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)
 
         # compute the PDE loss
+        pde_loss = temporal_derivative + spatial_derivative * nodes_t_1[:, self.index_node_derivator]
+
+        # apply the mask
+        if mask is not None:
+            pde_loss = pde_loss * mask
+
+        return pde_loss
+
+
+class BurgerLossDissipative(BurgerLoss):
+    """
+    Class that approximate the PDE loss on the graph
+    """
+    delta_t : float
+    index_edge_derivator: int
+    index_node_derivator: int
+
+    def __call__(self, nodes, edges, edges_index, nodes_t_1, mask=None, dissipation=0.1):
+        """
+        Forward pass
+        """
+        # compute the spatial derivative
+        spatial_derivative = self.derivator(nodes_t_1, edges, edges_index)
+
+        # compute the temporal derivative
+        temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)
+
+        # compute the PDE loss
         pde_loss = temporal_derivative + spatial_derivative * nodes[:, self.index_node_derivator]
 
         # apply the mask
@@ -107,6 +135,9 @@ class BurgerLoss(nn.Module):
             pde_loss = pde_loss * mask
 
         return pde_loss
+
+
+    
 
 
     

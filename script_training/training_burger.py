@@ -55,7 +55,7 @@ from matplotlib import pyplot as plt
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
-    "nb_epoch": 4,
+    "nb_epoch": 1,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
 }
@@ -157,7 +157,7 @@ def main_train():
     This function regroup all the main functions to train the GNN on the burger equation
     """
     # we choose the discretization of the space and the time
-    nb_space = 100
+    nb_space = 1024
     nb_time = 100
 
     delta_x = 1.0 / nb_space
@@ -254,7 +254,7 @@ def main_eval():
         params = pickle.load(f)
 
     # we create the dataset
-    nb_space = 100
+    nb_space = 1024
     nb_time = 100
 
     delta_x = 1.0 / nb_space
@@ -318,6 +318,9 @@ def eval_custom_initial_condition(model, params, nodes, edges, edges_index, nb_t
 
         # we save the result using ops.index
         results = results.at[:, i + 1].set(nodes[:, 0])
+
+        print(nodes.max())   
+
 
     extend = 0, 1, 0, 1
 

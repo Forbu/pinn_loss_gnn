@@ -6,7 +6,7 @@ stages:
     outs:
     - models_params/model_gnn.json
   eval:
-    cmd: python script_training/training_burger.py --mode eval
+    cmd: python3 script_training/training_burger.py --mode eval
     deps:
     - models_params/model_gnn.json
     - script_training/training_burger.py

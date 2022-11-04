@@ -39,6 +39,9 @@ RUN pip install torch
 # install matplotlib (for plotting)
 RUN pip install matplotlib
 
+# install pckage to read hdf5 files
+RUN pip install h5py
+
 # install git without asking for confirmation or geographic location
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y git
 
