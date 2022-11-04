@@ -29,12 +29,12 @@ class BurgerPDEDataset(Dataset):
             self.x = np.array(f['x-coordinate'])
             
     def __len__(self):
-        return self.len_item * self.len_t
+        return self.len_item * (self.len_t - 3)
 
     def __getitem__(self, idx):
 
         # we get the index of the time step
-        idx_t = idx // self.len_item
+        idx_t = idx // (self.len_item - 3)
 
         # we get the index of the item
         idx_item = idx % self.len_item
@@ -44,6 +44,8 @@ class BurgerPDEDataset(Dataset):
             # we get the tensor
             tensor_arr = f['tensor']
             # we get the tensor at the index idx
-            tensor = tensor_arr[idx_item, idx_t, :]
-            
-        return {"nodes" : tensor, "edges" : self.edges, "edges_index" : self.edges_index}
+            tensor = np.array(tensor_arr[idx_item, idx_t, :])
+
+            tensor_tp1 = np.array(tensor_arr[idx_item, idx_t+1, :])
+
+        return {"nodes" : tensor, "edges" : self.edges, "edges_index" : self.edges_index, "nodes_next" : tensor_tp1}

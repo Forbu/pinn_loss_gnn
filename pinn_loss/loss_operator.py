@@ -108,16 +108,23 @@ class BurgerLoss(nn.Module):
 
         return pde_loss
 
-
-class BurgerLossDissipative(BurgerLoss):
+class BurgerLossDissipative(nn.Module):
     """
     Class that approximate the PDE loss on the graph
     """
     delta_t : float
     index_edge_derivator: int
     index_node_derivator: int
+    mu : float
 
-    def __call__(self, nodes, edges, edges_index, nodes_t_1, mask=None, dissipation=0.1):
+    def setup(self):
+        """
+        We need one spatial derivator and one temporal derivator
+        """
+        self.derivator = DerivativeOperator(index_edge_derivator=self.index_edge_derivator, index_node_derivator=self.index_node_derivator) # spatial derivator
+        self.tempo_derivator = TemporalDerivativeOperator(index_node_derivator=self.index_node_derivator, delta_t=self.delta_t) # temporal derivator
+
+    def __call__(self, nodes, edges, edges_index, nodes_t_1, mask=None):
         """
         Forward pass
         """
@@ -127,8 +134,12 @@ class BurgerLossDissipative(BurgerLoss):
         # compute the temporal derivative
         temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)
 
+        # compute second spatial derivative
+        spatial_derivative_2 = self.derivator(spatial_derivative.reshape((-1, 1)), edges, edges_index)
+
         # compute the PDE loss
-        pde_loss = temporal_derivative + spatial_derivative * nodes[:, self.index_node_derivator]
+        pde_loss = temporal_derivative + spatial_derivative * nodes_t_1[:, self.index_node_derivator] -\
+                                                     self.mu * spatial_derivative_2
 
         # apply the mask
         if mask is not None:

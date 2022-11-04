@@ -14,7 +14,7 @@ with h5py.File("data_pde_benchmark/1D_Burgers_Sols_Nu0.001.hdf5", "r") as f:
 
     # access to the data and the coordinates and covert the whole thing to numpy
     # data is a numpy array of shape (10000, 201, 1024)
-    data = np.array(f['tensor'][1, :, :])
+    data = np.array(f['tensor'][2, :, :])
     print(data.shape)
 
     # t is a numpy array of shape (202,)

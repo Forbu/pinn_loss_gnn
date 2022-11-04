@@ -71,7 +71,6 @@ config_model = {
 "mp_iteration": 5,
 }
 
-
 def init_model_gnn(dataloader, delta_t=0.01, index_edge_derivator=0, index_node_derivator=0):
     """
     This function initialize the model (gnn) but also the burgerloss operator
