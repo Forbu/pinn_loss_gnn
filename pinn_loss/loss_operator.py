@@ -94,7 +94,7 @@ class BurgerLoss(nn.Module):
         Forward pass
         """
         # compute the spatial derivative
-        spatial_derivative = self.derivator(nodes, edges, edges_index)
+        spatial_derivative = self.derivator(nodes_t_1, edges, edges_index)
 
         # compute the temporal derivative
         temporal_derivative = self.tempo_derivator(nodes, nodes_t_1)

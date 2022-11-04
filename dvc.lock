@@ -4,25 +4,25 @@ stages:
     cmd: python3 script_training/training_burger.py
     deps:
     - path: script_training/training_burger.py
-      md5: d49a8803e80509aad50477347e5853f2
-      size: 16968
+      md5: 7aee6870ea66eeebd3a5e76b8973cecf
+      size: 16969
     outs:
     - path: models_params/model_gnn.json
-      md5: 78769b4db37053fea939ffc48e0420a7
+      md5: c60a0f6096285e8d006a0ca734fdafd8
       size: 212617
   eval:
     cmd: python3 script_training/training_burger.py --mode eval
     deps:
     - path: models_params/model_gnn.json
-      md5: 78769b4db37053fea939ffc48e0420a7
+      md5: c60a0f6096285e8d006a0ca734fdafd8
       size: 212617
     - path: script_training/training_burger.py
-      md5: d49a8803e80509aad50477347e5853f2
-      size: 16968
+      md5: 7aee6870ea66eeebd3a5e76b8973cecf
+      size: 16969
     outs:
     - path: metrics/metrics.json
-      md5: 9b385d471c381fef03104e494e7b2dde
+      md5: 198b3ac3675a1edfc4fd3c973d3fa93e
       size: 43
     - path: metrics/metrics_random_sample.json
-      md5: 78df85002198baab4b7de3aacc06cec0
+      md5: e70e48d6896acb1b86ea6c1d374ba957
       size: 46

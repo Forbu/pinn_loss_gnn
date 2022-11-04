@@ -54,7 +54,7 @@ from matplotlib import pyplot as plt
 config_trainer = {
     "batch_size": 1,
     "learning_rate": 1e-3,
-    "nb_epoch": 2,
+    "nb_epoch": 1,
     "save_model_every_n_epoch": 10,
     "save_log_step_every_n_step": 10,
 }
@@ -116,7 +116,7 @@ def create_burger_dataset(nb_space, delta_x, batch_size=1, size_dataset=20000):
     space_mesh = np.linspace(0, 1, nb_space)
 
     # gausien noise
-    noise = np.random.normal(0., 1., size=(size_dataset, nb_space))
+    noise = np.random.normal(0., 10., size=(size_dataset, nb_space))
 
     # we create the initial condition by adding a gaussian noise to create a random initial condition
     dataset = np.cumsum(noise, axis=1) * delta_x
