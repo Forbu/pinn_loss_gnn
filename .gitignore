@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 mlruns/
+data_pde_benchmark/
 
 # C extensions
 *.so
