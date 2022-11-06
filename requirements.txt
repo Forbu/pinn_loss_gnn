@@ -1,6 +1,3 @@
-jax
-flax
-jraph
 torch 
 torchvision 
 torchaudio
